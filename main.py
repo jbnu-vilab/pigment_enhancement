@@ -23,8 +23,10 @@ def main(config):
         'ppr10kc': '../DB/Enhancement_DB/train_val_images_tif_360p/'
         #'adobe5k': '../DB/Enhancement_DB/Adobe5k_train_test/',
     }
-    os.mkdir('log')
-    os.mkdir('model')
+    if os.path.exists('log') == False:
+        os.mkdir('log')
+    if os.path.exists('model') == False:
+        os.mkdir('model')
 
 
     if config.seed == 0:

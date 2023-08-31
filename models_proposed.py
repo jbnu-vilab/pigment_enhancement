@@ -3567,14 +3567,7 @@ class DCPNet15(nn.Module):
         y_tot = self.conv_out(y)
 
         if self.residual == 1:
-            y1 = self.res1(y_tot)
-            y2 = self.res2(y1)
-            y3 = self.res3(y2)
-            y3 = self.res4(y3)
-            y2 = self.res5(torch.cat((y2, F.upsample_bilinear(y3, scale_factor=2)), dim=1))
-            y1 = self.res6(torch.cat((y1, F.upsample_bilinear(y2, scale_factor=2)), dim=1))
-            y1 = self.res7(y1)
-            y_tot = y_tot + y1
+            y_tot = y_tot + org_img
 
         
         # # color_mapping_global = color_mapping_global.reshape(N, C)
