@@ -184,6 +184,8 @@ class solver_IE(object):
             self.model = models_proposed.DCPNet18(config).cuda()
         elif config.m == 19:
             self.model = models_proposed.DCPNet19(config).cuda()
+        elif config.m == 20:
+            self.model = models_proposed.DCPNet20(config).cuda()
        
 
         self.PSNR = PSNR().cuda()

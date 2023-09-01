@@ -4546,3 +4546,168 @@ class DCPNet19(nn.Module):
         # # y = rx + b
 
         return y_tot
+
+
+class DCPNet20(nn.Module):
+    def __init__(self, config):
+        super(DCPNet20, self).__init__()
+
+        self.scale = config.scale
+        self.act = config.act
+
+        self.feature_num = config.feature_num
+        self.iter_num = config.iter_num
+
+        self.conv_emb1 = convBlock(input_feature=3, output_feature=self.feature_num, ksize=3, stride=1, pad=1,
+                                  act=self.act)
+        self.conv_emb2 = convBlock(input_feature=self.feature_num, output_feature=self.feature_num, ksize=3, stride=1, pad=1,
+                                   act=self.act)
+        self.conv_emb3 = convBlock(input_feature=self.feature_num, output_feature=self.feature_num, ksize=3, stride=1,
+                                   pad=1, act=self.act)
+        self.maxpool = nn.MaxPool2d(2, stride=2)
+
+        self.conv_out1 = convBlock(input_feature=2 * self.feature_num, output_feature=3, ksize=3, stride=1, pad=1,
+                                  act=self.act, extra_conv=True)
+
+        self.conv_out2 = convBlock(input_feature=2 * self.feature_num, output_feature=self.feature_num, ksize=3, stride=1, pad=1,
+                                  act=self.act, extra_conv=True)
+
+
+        self.conv1 = convBlock(input_feature=3, output_feature=16, ksize=3, stride=2, pad=1, act=self.act)
+        self.conv2 = convBlock(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)
+        self.conv3 = convBlock(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)
+        self.conv4 = convBlock(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act)
+
+
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.upsample = nn.UpsamplingBilinear2d(scale_factor=2)
+        # no use
+        self.global_conv1 = convBlock(input_feature=1024, output_feature=128, ksize=1, stride=1, pad=0, act=self.act)
+
+        # no use
+        self.local_conv1 = convBlock(input_feature=64, output_feature=128, ksize=1, stride=1, pad=0, act=self.act)
+
+        if config.dataset == 'ppr10ka' or config.dataset == 'ppr10kb' or config.dataset == 'ppr10kc' or config.dataset == 'adobe5k2':
+            self.transform = T.Resize((448, 448))
+            image_size = 448
+        else:
+            self.transform = T.Resize((256, 256))
+            image_size = 256
+        self.extract_f = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, extra_conv=True,
+                                    act=self.act)
+
+        self.control_point = config.control_point
+        self.glo_mode = config.glo_mode
+
+
+        self.color_conv_global = convBlock2(input_feature=128,
+                                            output_feature=3 * (self.iter_num * 2) * self.feature_num, ksize=1,
+                                            stride=1,
+                                            pad=0, extra_conv=True, act=self.act)
+
+        self.prelu = []
+        for i in range(3 * (self.iter_num - 1) ):
+            self.prelu.append(nn.PReLU().cuda())
+        # self.featureFusion = featureFusion()
+
+        # no use
+        self.w = nn.Parameter(torch.tensor([0.5, 0.5], dtype=torch.float32))
+        self.softmax = nn.Softmax(dim=0)
+
+        self.global_module = config.global_m
+
+        self.residual = config.residual
+
+        self.initialize_weights()
+
+        self.color_map = colorTransform(self.control_point, config.use_param, config.trainable_gamma,
+                                        config.trainable_offset, config.offset_param, config.offset_param2,
+                                        config.gamma_param, config)
+
+
+        self.transformer = ViT2(image_size=image_size, patch_size=16, num_classes=128, dim=128, depth=2, heads=16,
+                                mlp_dim=512,
+                                pool='cls', dim_head=64, dropout=0.1)
+
+
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+
+    def forward(self, org_img, index_image, color_map_control):
+        img = self.transform(org_img)
+
+        img_f1 = self.conv_emb1(org_img)
+        img_f2 = self.conv_emb2(self.maxpool(img_f1))
+        img_f3 = self.conv_emb3(self.maxpool(img_f2))
+
+        x1 = self.conv1(img)
+        x2 = self.conv2(x1)
+        x3 = self.conv3(x2)
+        x4 = self.conv4(x3)
+
+        x6 = self.transformer(x4)
+
+        x6 = torch.transpose(x6, 1, 2)
+        x6_global = x6[:, :, 0]
+        x6_global = x6_global.unsqueeze(2).unsqueeze(3)
+
+        color_mapping_global = self.color_conv_global(x6_global)
+        gamma_g = []
+        beta_g = []
+
+        cur_idx = 0
+        # scale 1
+        for i in range(self.iter_num):
+            gamma_g.append(color_mapping_global[:, cur_idx * self.feature_num:(cur_idx + 1) * self.feature_num, ])
+            cur_idx += 1
+            beta_g.append(color_mapping_global[:, cur_idx * self.feature_num:(cur_idx + 1) * self.feature_num, ])
+            cur_idx += 1
+        y1 = img_f1
+        for i in range(self.iter_num):
+            y1 = gamma_g[i] * y1 + beta_g[i]
+            if i < self.iter_num - 1:
+                y1 = self.prelu[i](y1)
+
+        # scale 2
+        for i in range(self.iter_num,self.iter_num*2):
+            gamma_g.append(color_mapping_global[:, cur_idx * self.feature_num:(cur_idx + 1) * self.feature_num, ])
+            cur_idx += 1
+            beta_g.append(color_mapping_global[:, cur_idx * self.feature_num:(cur_idx + 1) * self.feature_num, ])
+            cur_idx += 1
+        y2 = img_f2
+        for i in range(self.iter_num,self.iter_num*2):
+            y2 = gamma_g[i] * y2 + beta_g[i]
+            if i < self.iter_num * 2 - 1:
+                y2 = self.prelu[i](y2)
+
+        # scale 3
+        for i in range(self.iter_num*2,self.iter_num*3):
+            gamma_g.append(color_mapping_global[:, cur_idx * self.feature_num:(cur_idx + 1) * self.feature_num, ])
+            cur_idx += 1
+            beta_g.append(color_mapping_global[:, cur_idx * self.feature_num:(cur_idx + 1) * self.feature_num, ])
+            cur_idx += 1
+        y3 = img_f3
+        for i in range(self.iter_num*2,self.iter_num*3):
+            y3 = gamma_g[i] * y3 + beta_g[i]
+            if i < self.iter_num * 2 - 1:
+                y3 = self.prelu[i](y3)
+
+        y3 = self.upsample(y3)
+        y2 = torch.cat((y2, y3), dim=1)
+        y2 = self.conv_out2(y2)
+        y2 = self.upsample(y2)
+        y1 = torch.cat((y1, y2), dim=1)
+        y_tot = self.conv_out1(y1)
+
+        if self.residual == 1:
+            y_tot = y_tot + org_img
+
+        return y_tot
