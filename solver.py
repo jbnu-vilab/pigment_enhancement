@@ -138,6 +138,7 @@ class solver_IE(object):
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+        self.config = config
         self.vgg_mode = config.vgg_mode
         self.contrastive = config.contrastive
         if self.contrastive == 0:
@@ -190,6 +191,9 @@ class solver_IE(object):
             self.model = models_proposed.DCPNet21(config).cuda()
         elif config.m == 22:
             self.model = models_proposed.DCPNet22(config).cuda()
+        elif config.m == 23:
+            self.model = models_proposed.DCPNet23(config).cuda()
+
        
 
         self.PSNR = PSNR().cuda()
@@ -264,13 +268,11 @@ class solver_IE(object):
             start = time.time()
             for img, label, index in self.train_data:
                 i = i+1
-
-
                 N, C, H, W = img.shape
                 temp = [i / (self.control_point+1) for i in range(self.control_point+2)]
                 color_position = torch.tensor(temp)
                 color_position = color_position.unsqueeze(0).unsqueeze(1)
-                color_position = color_position.repeat(N, C, 1)
+                color_position = color_position.repeat(N, self.config.feature_num, 1)
                 color_position = torch.tensor(color_position.cuda())
 
                 img = torch.tensor(img.cuda())
@@ -440,7 +442,7 @@ class solver_IE(object):
             temp = [i / (self.control_point + 1) for i in range(self.control_point + 2)]
             color_position = torch.tensor(temp)
             color_position = color_position.unsqueeze(0).unsqueeze(1)
-            color_position = color_position.repeat(N, C, 1)
+            color_position = color_position.repeat(N, self.config.feature_num, 1)
             color_position = torch.tensor(color_position.cuda())
             # Data.
             img = torch.tensor(img.cuda())
