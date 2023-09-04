@@ -4491,6 +4491,7 @@ class DCPNet19(nn.Module):
 
                 y = self.feature_fusion[k](y)
                 y = self.prelu[j](y)
+                j = j + 1
                 k = k + 1
                 y = self.feature_fusion[k](y)
                 k = k + 1
@@ -4945,6 +4946,269 @@ class DCPNet21(nn.Module):
                 y = self.prelu[j](y)
                 j = j + 1
                 y = self.feature_fusion2[i](y)
+                if i < self.iter_num - 1:
+                    y = self.prelu[j](y)
+                    j = j + 1
+
+        elif self.glo_mode == 1:
+            # global + local
+            y = (gamma_g + gamma_l) * img_f + (beta_g + beta_l)
+        elif self.glo_mode == 2:
+            # global , local separately
+            y = gamma_g * img_f + beta_g
+            y = gamma_l * y + beta_l
+        elif self.glo_mode == 3:
+            # local only
+            y = gamma_l * img_f + beta_l
+
+        #     y1 = self.res6(torch.cat((y1, F.upsample_bilinear(y2, scale_factor=2)), dim=1))
+        #     y1 = self.res7(y1)
+
+        # self.conv4_1 = convBlock(input_feature=128, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)
+        # self.conv3_1 = convBlock(input_feature=192, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)
+        # self.conv2_1 = convBlock(input_feature=160, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)
+        # self.conv1_1 = convBlock(input_feature=144, output_feature=128, ksize=3, stride=1, pad=1, act=self.act,
+        #                          extra_conv=True)
+
+        N, C, H, W = color_mapping_global.shape
+
+        y_tot = self.conv_out(y)
+
+        if self.residual == 1:
+            y_tot = y_tot + org_img
+
+        # # color_mapping_global = color_mapping_global.reshape(N, C)
+        # # if self.global_module == 1:
+        # #     y = self.color_map(org_img, color_mapping_global, index_image, color_map_control)
+        # # else:
+        # #     y = org_img
+        # if self.residual == 1:
+        #     y1 = self.res1(y)
+        #     y2 = self.res2(y1)
+        #     y3 = self.res3(y2)
+        #     y3 = self.res4(y3)
+        #     y2 = self.res5(torch.cat((y2, F.upsample_bilinear(y3, scale_factor=2)), dim=1))
+        #     y1 = self.res6(torch.cat((y1, F.upsample_bilinear(y2, scale_factor=2)), dim=1))
+        #     y1 = self.res7(y1)
+        #     y_tot = y + y1
+        # else:
+        #     y_tot = y
+        # # Get local transform
+        # # y = rx + b
+
+        return y_tot
+
+
+class DCPNet22(nn.Module):
+    def __init__(self, config):
+        super(DCPNet22, self).__init__()
+
+        self.scale = config.scale
+        self.act = config.act
+
+        self.feature_num = config.feature_num
+        self.iter_num = config.iter_num
+
+        self.conv_emb = convBlock(input_feature=3, output_feature=self.feature_num, ksize=3, stride=1, pad=1,
+                                  act=self.act)
+        self.conv_out = convBlock(input_feature=self.feature_num, output_feature=3, ksize=3, stride=1, pad=1,
+                                  act=self.act, extra_conv=True)
+
+        self.conv1 = convBlock(input_feature=3, output_feature=16, ksize=3, stride=2, pad=1, act=self.act)
+        self.conv2 = convBlock(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)
+        self.conv3 = convBlock(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)
+        self.conv4 = convBlock(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act)
+
+        self.conv5 = convBlock(input_feature=128, output_feature=256, ksize=3, stride=2, pad=1, act=self.act)
+        self.conv6 = convBlock(input_feature=256, output_feature=1024, ksize=1, stride=1, pad=0, act=self.act)
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
+
+        self.conv4_1 = convBlock(input_feature=128, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)
+        self.conv3_1 = convBlock(input_feature=192, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)
+        self.conv2_1 = convBlock(input_feature=160, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)
+        self.conv1_1 = convBlock(input_feature=144, output_feature=128, ksize=3, stride=1, pad=1, act=self.act,
+                                 extra_conv=True)
+
+        # no use
+        self.global_conv1 = convBlock(input_feature=1024, output_feature=128, ksize=1, stride=1, pad=0, act=self.act)
+
+        # no use
+        self.local_conv1 = convBlock(input_feature=64, output_feature=128, ksize=1, stride=1, pad=0, act=self.act)
+
+        if config.dataset == 'ppr10ka' or config.dataset == 'ppr10kb' or config.dataset == 'ppr10kc' or config.dataset == 'adobe5k2':
+            self.transform = T.Resize((448, 448))
+            image_size = 448
+        else:
+            self.transform = T.Resize((256, 256))
+            image_size = 256
+        self.extract_f = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, extra_conv=True,
+                                    act=self.act)
+
+        self.control_point = config.control_point
+        self.glo_mode = config.glo_mode
+
+        # self.feature_num = self.control_point * 3 * 3 + 15
+        # self.feature_num = 128
+        if self.scale == 4:
+            self.color_conv_local = convBlock2(input_feature=128, output_feature=24, ksize=1, stride=1, pad=0,
+                                               extra_conv=True, act=self.act)
+            self.color_conv_global = convBlock2(input_feature=128,
+                                                output_feature=(self.iter_num * 2) * self.feature_num, ksize=1,
+                                                stride=1,
+                                                pad=0, extra_conv=True, act=self.act)
+
+        elif self.scale == 5:
+            self.color_conv_local = convBlock2(input_feature=256, output_feature=24, ksize=1, stride=1, pad=0,
+                                               extra_conv=True, act=self.act)
+            self.color_conv_global = convBlock2(input_feature=256, output_feature=self.feature_num, ksize=1,
+                                                stride=1, pad=0,
+                                                extra_conv=True, act=self.act)
+
+        self.prelu = []
+        for i in range(self.iter_num * 5 - 1):
+            self.prelu.append(nn.PReLU().cuda())
+        self.feature_fusion = []
+        for i in range(self.iter_num):
+            self.feature_fusion.append(nn.Conv2d(self.feature_num, self.feature_num, kernel_size=1, stride=1, padding=0).cuda())
+            self.feature_fusion.append(nn.Conv2d(self.feature_num, self.feature_num, kernel_size=1, stride=1, padding=0).cuda())
+            self.feature_fusion.append(nn.Conv2d(self.feature_num, self.feature_num, kernel_size=1, stride=1, padding=0).cuda())
+            self.feature_fusion.append(nn.Conv2d(self.feature_num, self.feature_num, kernel_size=1, stride=1, padding=0).cuda())
+
+
+        # self.featureFusion = featureFusion()
+
+        # no use
+        self.w = nn.Parameter(torch.tensor([0.5, 0.5], dtype=torch.float32))
+        self.softmax = nn.Softmax(dim=0)
+
+        self.global_module = config.global_m
+
+        self.residual = config.residual
+        if self.residual == 1:
+            self.res1 = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+            self.res2 = convBlock2(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)  # s2
+            self.res3 = convBlock2(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)  # s3
+
+            self.res4 = convBlock2(input_feature=64, output_feature=64, ksize=3, stride=1, pad=1, act=self.act)  # s3
+            # upsample and concat
+            self.res5 = convBlock2(input_feature=96, output_feature=32, ksize=3, stride=1, pad=1, act=self.act)  # s2
+            # upsample and concat
+            self.res6 = convBlock2(input_feature=48, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+            self.res7 = convBlock(input_feature=16, output_feature=3, ksize=3, stride=1, pad=1, extra_conv=True,
+                                  act=self.act)
+
+        self.initialize_weights()
+
+        self.color_map = colorTransform(self.control_point, config.use_param, config.trainable_gamma,
+                                        config.trainable_offset, config.offset_param, config.offset_param2,
+                                        config.gamma_param, config)
+        # self.color_map = color_map_interpolation()
+
+        if self.scale == 4:
+            self.transformer = ViT2(image_size=image_size, patch_size=16, num_classes=128, dim=128, depth=2, heads=16,
+                                    mlp_dim=512,
+                                    pool='cls', dim_head=64, dropout=0.1)
+        elif self.scale == 5:
+            self.transformer = ViT2(image_size=image_size, patch_size=8, num_classes=256, dim=256, depth=2, heads=16,
+                                    mlp_dim=512, pool='cls', dim_head=64, dropout=0.1)
+
+        # self.prelu = nn.PReLU(num_parameters=64)
+        # self.transformer = ViT2(image_size=256, patch_size=16, num_classes=128, dim=128, depth=2, heads=16, mlp_dim=512,
+        #                         pool='cls', channels=128, dim_head=64, dropout=0.1)
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+
+    def forward(self, org_img, index_image, color_map_control):
+        img = self.transform(org_img)
+
+        img_f = self.conv_emb(org_img)
+
+        x1 = self.conv1(img)
+        x2 = self.conv2(x1)
+        x3 = self.conv3(x2)
+        if self.scale == 4:
+            x4 = self.conv4(x3)
+            x6 = self.transformer(x4)
+        # elif self.scale == 5:
+        #    x4 = self.conv4(x3)
+        #    x5 = self.conv5(x4)
+        #    x6 = self.transformer(x5)
+
+        if self.scale == 4:
+            N, C, H, W = x4.shape
+        # elif self.scale == 5:
+        #    N, C, H, W = x5.shape
+
+        x6 = torch.transpose(x6, 1, 2)
+        x6_global = x6[:, :, 0]
+        x6_global = x6_global.unsqueeze(2).unsqueeze(3)
+        x6_local = x6[:, :, 1:]
+        x6_local = x6_local.reshape(N, C, H, W)
+
+        color_mapping_global = self.color_conv_global(x6_global)
+        gamma_g = []
+        beta_g = []
+        cur_idx = 0
+        for i in range(self.iter_num):
+            gamma_g.append(color_mapping_global[:, cur_idx * self.feature_num:(cur_idx + 1) * self.feature_num, ])
+            cur_idx += 1
+            beta_g.append(color_mapping_global[:, cur_idx * self.feature_num:(cur_idx + 1) * self.feature_num, ])
+            cur_idx += 1
+
+        # gamma_g1 = color_mapping_global[:, :64, ]
+        # beta_g1 = color_mapping_global[:, 64:128, ]
+        # gamma_g2 = color_mapping_global[:, 128:192, ]
+        # beta_g2 = color_mapping_global[:, 192:256, ]
+        # prelu_param = color_mapping_global[:, 256:, ]
+
+        x4 = self.conv4_1(x4)
+        x3 = self.conv3_1(torch.cat((x3, F.upsample_bilinear(x4, scale_factor=2)), dim=1))
+        x2 = self.conv2_1(torch.cat((x2, F.upsample_bilinear(x3, scale_factor=2)), dim=1))
+        x1 = self.conv1_1(torch.cat((x1, F.upsample_bilinear(x2, scale_factor=2)), dim=1))
+
+        _, _, ho, wo = org_img.shape
+        resize = T.Resize((ho, wo))
+
+        # x1 to original size
+        x1 = resize(x1)
+        gamma_l = x1[:, :64, :, :]
+        beta_l = x1[:, 64:, :, :]
+
+        # Get global transform..
+        j = 0
+        y = img_f
+        k = 0
+        if self.glo_mode == 0:
+            for i in range(self.iter_num):
+                y = gamma_g[i] * y + beta_g[i]
+                y = self.prelu[j](y)
+                j = j + 1
+
+                y = self.feature_fusion[k](y)
+                y = self.prelu[j](y)
+                j = j + 1
+                k = k + 1
+
+                y = self.feature_fusion[k](y)
+                y = self.prelu[j](y)
+                j = j + 1
+                k = k + 1
+
+                y = self.feature_fusion[k](y)
+                y = self.prelu[j](y)
+                j = j + 1
+                k = k + 1
+                
+                y = self.feature_fusion[k](y)
+                k = k + 1
                 if i < self.iter_num - 1:
                     y = self.prelu[j](y)
                     j = j + 1
