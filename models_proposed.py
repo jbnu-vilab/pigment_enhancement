@@ -5,7 +5,7 @@ from torch.nn import init
 import torchvision.transforms as T
 from vit import ViT, ViT2
 
-
+import torchvision.models as models
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -4996,3 +4996,65 @@ class DCPNet21(nn.Module):
         # # y = rx + b
 
         return y_tot
+
+
+
+class DCPNet23(nn.Module):
+    def __init__(self, config):
+        super(DCPNet23, self).__init__()
+
+        self.quant_num = 16
+        self.feature_num = config.feature_num
+        self.classifier = resnet18_224(out_dim=self.quant_num * self.feature_num)
+        self.conv_emb = nn.Conv2d(3, self.feature_num, kernel_size=1, stride=1, padding=0),
+
+
+        self.scale = config.scale
+        self.act = config.act
+
+        self.feature_num = config.feature_num
+        self.iter_num = config.iter_num
+
+        self.conv_emb = convBlock(input_feature=3, output_feature=self.feature_num, ksize=3, stride=1, pad=1,
+                                  act=self.act)
+        self.conv_out = convBlock(input_feature=self.feature_num, output_feature=3, ksize=3, stride=1, pad=1,
+                                  act=self.act, extra_conv=True)
+
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+
+    def forward(self, org_img, index_image, color_map_control):
+
+
+        return org_img
+
+class resnet18_224(nn.Module):
+
+    def __init__(self, out_dim=5, aug_test=False):
+        super(resnet18_224, self).__init__()
+
+        self.aug_test = aug_test
+        net = models.resnet18(pretrained=True)
+        # self.mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).cuda()
+        # self.std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).cuda()
+
+        self.upsample = nn.Upsample(size=(224, 224), mode='bilinear')
+        net.fc = nn.Linear(512, out_dim)
+        self.model = net
+
+    def forward(self, x):
+        x = self.upsample(x)
+        if self.aug_test:
+            # x = torch.cat((x, torch.rot90(x, 1, [2, 3]), torch.rot90(x, 3, [2, 3])), 0)
+            x = torch.cat((x, torch.flip(x, [3])), 0)
+        f = self.model(x)
+
+        return f
