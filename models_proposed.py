@@ -5331,7 +5331,7 @@ class colorTransform2(nn.Module):
     def forward(self, org_img, params, color_mapping_global_a, color_map_control):
         #out_img = torch.zeros(N,C,H,W).cuda()
         N, C, H, W = org_img.shape
-        out_img = torch.zeros_like(org_img)
+        #out_img = torch.zeros_like(org_img)
         color_map_control_x = color_map_control.clone()
         params = params.reshape(N, self.feature_num, self.control_point) * self.offset_param
         color_map_control_y = color_map_control_x + params
@@ -5339,16 +5339,26 @@ class colorTransform2(nn.Module):
         color_map_control_y = torch.cat((color_map_control_y, color_map_control_y[:, :, self.control_point-1:self.control_point]), dim=2)
         color_map_control_x = torch.cat((color_map_control_x, color_map_control_x[:, :, self.control_point-1:self.control_point]), dim=2)
         img_reshaped = org_img.reshape(N, self.feature_num, -1)
-        out_img_reshaped = out_img.reshape(N, self.feature_num, -1)
+        #out_img_reshaped = out_img.reshape(N, self.feature_num, -1)
         img_reshaped_val = img_reshaped * (self.control_point-1)
+
+
         img_reshaped_index = torch.floor(img_reshaped * (self.control_point-1))
+        img_reshaped_index = img_reshaped_index.type(torch.int64)
+        img_reshaped_index_plus = img_reshaped_index + 1
+
         img_reshaped_coeff = img_reshaped_val - img_reshaped_index
         img_reshaped_coeff_one = 1.0 - img_reshaped_coeff
-        for i in range(0, self.control_point):
-            mask = img_reshaped_index == i
-            masked_img_reshaped_coeff = mask * img_reshaped_coeff
-            masked_img_reshaped_coeff_one = mask * img_reshaped_coeff_one
-            out_img_reshaped += masked_img_reshaped_coeff_one * color_map_control_y[:,:,i:i+1] + masked_img_reshaped_coeff * color_map_control_y[:,:,i+1:i+2]
+
+        mapped_color_map_control_y = torch.gather(color_map_control_y, 2, img_reshaped_index)
+        mapped_color_map_control_y_plus = torch.gather(color_map_control_y, 2, img_reshaped_index_plus)
+
+        out_img_reshaped = img_reshaped_coeff_one * mapped_color_map_control_y + img_reshaped_coeff * mapped_color_map_control_y_plus
+        # for i in range(0, self.control_point):
+        #     mask = img_reshaped_index == i
+        #     masked_img_reshaped_coeff = mask * img_reshaped_coeff
+        #     masked_img_reshaped_coeff_one = mask * img_reshaped_coeff_one
+        #     out_img_reshaped += masked_img_reshaped_coeff_one * color_map_control_y[:,:,i:i+1] + masked_img_reshaped_coeff * color_map_control_y[:,:,i+1:i+2]
 
         out_img_reshaped = out_img_reshaped.reshape(N, C, H, W)
         return out_img_reshaped
