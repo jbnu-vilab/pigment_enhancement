@@ -5416,16 +5416,17 @@ class DCPNet24(nn.Module):
             N, C, H, W = org_img.shape
             offset_param = self.cls_output[:,:self.control_point_num * self.feature_num]
             transform_params = self.cls_output[:,self.control_point_num * self.feature_num:]
-            transform_params = transform_params.reshape(-1, 3, self.feature_num)
+            transform_params = transform_params.reshape(N * self.feature_num, 3)
             transform_params = self.sigmoid(transform_params)
             epsilon = 1e-10
             t_sum = torch.sum(transform_params, dim=1, keepdim=True)
             transform_params = transform_params / (t_sum + epsilon)
-            transform_params = transform_params.reshape(N*3,self.feature_num,1,1).permute(1,0,2,3)
-            
-            org_img = org_img.reshape(N*3, H, W)
-            img_f = F.conv2d(input=org_img, weight=transform_params)
-            img_f = img_f.reshape()
+            transform_params = transform_params.reshape(N * self.feature_num, 3,1,1)
+            #transform_params = transform_params.permute(1,2,0,3,4)
+            #org_img = org_img.permute(1,0,2,3)
+            org_img = org_img.reshape(1, N * 3, H, W)
+            img_f = F.conv2d(input=org_img, weight=transform_params, groups=N)
+            img_f = img_f.reshape(N,self.feature_num,H,W)
             img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control)
 
         
