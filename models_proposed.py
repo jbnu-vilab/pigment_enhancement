@@ -5278,7 +5278,7 @@ class DCPNet23(nn.Module):
 
         #self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
         self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
-        #self.classifier = resnet18_224(out_dim=self.quant_num * self.feature_num + 3 * self.feature_num)
+
 
         self.sigmoid = nn.Sigmoid()
 
@@ -5362,6 +5362,126 @@ class colorTransform2(nn.Module):
 
         out_img_reshaped = out_img_reshaped.reshape(N, C, H, W)
         return out_img_reshaped
+
+
+
+class DCPNet24(nn.Module):
+    def __init__(self, config):
+        super(DCPNet24, self).__init__()
+
+        self.control_point_num = config.control_point + 2
+        self.feature_num = config.feature_num
+        
+        self.hyper = config.hyper
+        if self.hyper == 0:
+            self.classifier = resnet18_224(out_dim=self.control_point_num * self.feature_num)
+            self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
+        elif self.hyper == 1:
+            self.classifier = resnet18_224(out_dim=self.control_point_num * self.feature_num + 3 * self.feature_num)
+
+        
+
+        self.colorTransform = colorTransform3(self.control_point_num, config.offset_param, config)
+
+        #self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+        self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+
+
+        self.sigmoid = nn.Sigmoid()
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+
+    def forward(self, org_img, index_image, color_map_control):
+        self.cls_output = self.classifier(org_img)
+
+        if self.hyper == 0:
+            norm_params = self.sigmoid(self.params)
+            epsilon = 1e-10
+            w_sum = torch.sum(norm_params, dim=1, keepdim=True)
+            norm_params = norm_params / (w_sum + epsilon)
+            img_f = F.conv2d(input=org_img, weight=norm_params)
+            img_f_t = self.colorTransform(img_f, self.cls_output, index_image, color_map_control)
+        elif self.hyper == 1:
+            offset_param = self.cls_output[:,:self.control_point_num * self.feature_num]
+            transform_params = self.cls_output[:,self.control_point_num * self.feature_num:]
+            transform_params = transform_params.reshape(-1, self.feature_num, 3)
+            norm_params = self.sigmoid(transform_params)
+            epsilon = 1e-10
+            w_sum = torch.sum(norm_params, dim=1, keepdim=True)
+            norm_params = norm_params / (w_sum + epsilon)
+            img_f = F.conv2d(input=org_img, weight=norm_params)
+            img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control)
+
+        
+        #self.conv_emb = F.conv2d(3, self.feature_num, weight=norm_params, kernel_size=1, stride=1, padding=0, bias=False)
+        #self.temp_weight =
+        #conv_emb = nn.Conv2d(3, self.feature_num, weight= , kernel_size=1, stride=1, padding=0, bias=False)
+        out_img = self.conv_out(img_f_t)
+
+        #img_f = self.conv_emb(org_img)
+
+        return out_img
+
+
+class colorTransform3(nn.Module):
+    def __init__(self, control_point=16, offset_param=0.04, config=0):
+        super(colorTransform3, self).__init__()
+        self.w = nn.Parameter(torch.tensor([0.5, 0.5], dtype=torch.float32))
+        self.softmax = nn.Softmax(dim=0)
+        self.control_point = control_point
+        self.sigmoid = torch.nn.Sigmoid()
+        self.config = config
+        self.feature_num = config.feature_num
+
+        self.epsilon = 1e-8
+
+        self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
+
+
+
+    def forward(self, org_img, params, color_mapping_global_a, color_map_control):
+        #out_img = torch.zeros(N,C,H,W).cuda()
+        N, C, H, W = org_img.shape
+        #out_img = torch.zeros_like(org_img)
+        color_map_control_x = color_map_control.clone()
+        params = params.reshape(N, self.feature_num, self.control_point) * self.offset_param
+        color_map_control_y = color_map_control_x + params
+
+        color_map_control_y = torch.cat((color_map_control_y, color_map_control_y[:, :, self.control_point-1:self.control_point]), dim=2)
+        color_map_control_x = torch.cat((color_map_control_x, color_map_control_x[:, :, self.control_point-1:self.control_point]), dim=2)
+        img_reshaped = org_img.reshape(N, self.feature_num, -1)
+        #out_img_reshaped = out_img.reshape(N, self.feature_num, -1)
+        img_reshaped_val = img_reshaped * (self.control_point-1)
+
+
+        img_reshaped_index = torch.floor(img_reshaped * (self.control_point-1))
+        img_reshaped_index = img_reshaped_index.type(torch.int64)
+        img_reshaped_index_plus = img_reshaped_index + 1
+
+        img_reshaped_coeff = img_reshaped_val - img_reshaped_index
+        img_reshaped_coeff_one = 1.0 - img_reshaped_coeff
+
+        mapped_color_map_control_y = torch.gather(color_map_control_y, 2, img_reshaped_index)
+        mapped_color_map_control_y_plus = torch.gather(color_map_control_y, 2, img_reshaped_index_plus)
+
+        out_img_reshaped = img_reshaped_coeff_one * mapped_color_map_control_y + img_reshaped_coeff * mapped_color_map_control_y_plus
+        # for i in range(0, self.control_point):
+        #     mask = img_reshaped_index == i
+        #     masked_img_reshaped_coeff = mask * img_reshaped_coeff
+        #     masked_img_reshaped_coeff_one = mask * img_reshaped_coeff_one
+        #     out_img_reshaped += masked_img_reshaped_coeff_one * color_map_control_y[:,:,i:i+1] + masked_img_reshaped_coeff * color_map_control_y[:,:,i+1:i+2]
+
+        out_img_reshaped = out_img_reshaped.reshape(N, C, H, W)
+        return out_img_reshaped
+
 class resnet18_224(nn.Module):
 
     def __init__(self, out_dim=5, aug_test=False):

@@ -129,6 +129,8 @@ if __name__ == '__main__':
     parser.add_argument("--size", dest='size', type=int, default=448)
     
     parser.add_argument("--res_mode", dest='res_mode', type=int, default=0)
+
+    parser.add_argument("--hyper", dest='hyper', type=int, default=0)
     config = parser.parse_args()
     main(config)
 
