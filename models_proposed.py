@@ -5353,7 +5353,9 @@ class colorTransform2(nn.Module):
         mapped_color_map_control_y = torch.gather(color_map_control_y, 2, img_reshaped_index)
         mapped_color_map_control_y_plus = torch.gather(color_map_control_y, 2, img_reshaped_index_plus)
 
+        #out_img_reshaped = (1.0 - img_reshaped_coeff) * mapped_color_map_control_y + img_reshaped_coeff * mapped_color_map_control_y_plus
         out_img_reshaped = img_reshaped_coeff_one * mapped_color_map_control_y + img_reshaped_coeff * mapped_color_map_control_y_plus
+        
         # for i in range(0, self.control_point):
         #     mask = img_reshaped_index == i
         #     masked_img_reshaped_coeff = mask * img_reshaped_coeff
@@ -5407,17 +5409,23 @@ class DCPNet24(nn.Module):
             epsilon = 1e-10
             w_sum = torch.sum(norm_params, dim=1, keepdim=True)
             norm_params = norm_params / (w_sum + epsilon)
+            # 64 x 3 x 1 x 1
             img_f = F.conv2d(input=org_img, weight=norm_params)
             img_f_t = self.colorTransform(img_f, self.cls_output, index_image, color_map_control)
         elif self.hyper == 1:
+            N, C, H, W = org_img.shape
             offset_param = self.cls_output[:,:self.control_point_num * self.feature_num]
             transform_params = self.cls_output[:,self.control_point_num * self.feature_num:]
-            transform_params = transform_params.reshape(-1, self.feature_num, 3)
-            norm_params = self.sigmoid(transform_params)
+            transform_params = transform_params.reshape(-1, 3, self.feature_num)
+            transform_params = self.sigmoid(transform_params)
             epsilon = 1e-10
-            w_sum = torch.sum(norm_params, dim=1, keepdim=True)
-            norm_params = norm_params / (w_sum + epsilon)
-            img_f = F.conv2d(input=org_img, weight=norm_params)
+            t_sum = torch.sum(transform_params, dim=1, keepdim=True)
+            transform_params = transform_params / (t_sum + epsilon)
+            transform_params = transform_params.reshape(N*3,self.feature_num,1,1).permute(1,0,2,3)
+            
+            org_img = org_img.reshape(N*3, H, W)
+            img_f = F.conv2d(input=org_img, weight=transform_params)
+            img_f = img_f.reshape()
             img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control)
 
         
