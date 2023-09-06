@@ -131,6 +131,10 @@ if __name__ == '__main__':
     parser.add_argument("--res_mode", dest='res_mode', type=int, default=0)
 
     parser.add_argument("--hyper", dest='hyper', type=int, default=0)
+    parser.add_argument("--conv_mode", dest='conv_mode', type=int, default=3)
+
+    parser.add_argument("--xoffset", dest='xoffset', type=int, default=0)
+
     config = parser.parse_args()
     main(config)
 
