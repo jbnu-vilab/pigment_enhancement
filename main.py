@@ -135,6 +135,8 @@ if __name__ == '__main__':
 
     parser.add_argument("--xoffset", dest='xoffset', type=int, default=0)
 
+    parser.add_argument("--num_weight", dest='num_weight', type=int, default=1)
+
     config = parser.parse_args()
     main(config)
 

@@ -90,6 +90,8 @@ class convBlock2(nn.Module):
             activation = nn.SiLU(inplace=True)
         elif act=='gelu':
             activation = nn.GELU()
+        elif act=='leaky':
+            activation = nn.LeakyReLU(0.1)
 
         lists = []
         if extra_conv:
@@ -5425,7 +5427,7 @@ class DCPNet24(nn.Module):
         elif self.hyper == 1:
             N, C, H, W = org_img.shape
             transform_params = self.cls_output[:,:3 * self.feature_num]
-            offset_param = self.cls_output[:,:3 * self.feature_num:]
+            offset_param = self.cls_output[:,3 * self.feature_num:]
             
             transform_params = transform_params.reshape(N * self.feature_num, 3)
             transform_params = self.sigmoid(transform_params)
@@ -5450,6 +5452,140 @@ class DCPNet24(nn.Module):
 
         return out_img
 
+
+class DCPNet25(nn.Module):
+    def __init__(self, config):
+        super(DCPNet25, self).__init__()
+
+        self.control_point_num = config.control_point + 2
+        self.feature_num = config.feature_num
+        
+        self.hyper = config.hyper
+        self.xoffset = config.xoffset
+
+        self.num_weight = config.num_weight
+
+        param_num = self.control_point_num * self.feature_num * config.num_weight
+        if self.xoffset == 1:
+            param_num += (self.control_point_num - 2) * self.feature_num
+        if self.hyper == 0:    
+            self.classifier = resnet18_224(out_dim=param_num)
+            self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
+        elif self.hyper == 1:
+            param_num += (3 * self.feature_num)
+            self.classifier = resnet18_224(out_dim=param_num)
+
+        
+        if self.num_weight > 1:
+            self.colorTransform = colorTransform_multi(self.control_point_num, config.offset_param, self.num_weight, config)
+        else:    
+            if config.xoffset == 0:
+                self.colorTransform = colorTransform3(self.control_point_num, config.offset_param, config)
+            else:
+                self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config)
+        if config.conv_mode == 3:
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+        elif config.conv_mode == 1:
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+        
+        
+        self.act = 'leaky'
+        if self.num_weight > 1:
+            self.resize = T.Resize((256, 256))
+            self.res1 = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+            self.res2 = convBlock2(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)  # s2
+            self.res3 = convBlock2(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)  # s3
+
+            self.res4 = convBlock2(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act)  # s4
+
+            
+            self.res5 = convBlock2(input_feature=128, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)  # s4
+
+            # upsample and concat
+            self.res6 = convBlock2(input_feature=192, output_feature=64, ksize=3, stride=1, pad=1, act=self.act)  # s3
+
+             # upsample and concat
+            self.res7 = convBlock2(input_feature=96, output_feature=32, ksize=3, stride=1, pad=1, act=self.act)  # s2
+
+            # upsample and concat
+            self.res8 = convBlock2(input_feature=48, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+
+            self.res9 = nn.Conv2d(16, self.num_weight, kernel_size=3, padding=1)
+
+        self.sigmoid = nn.Sigmoid()
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+
+    def forward(self, org_img, index_image, color_map_control):
+        N, C, H, W = org_img.shape
+        if self.num_weight > 1:
+            y = self.resize(org_img)
+            y1 = self.res1(y)
+            y2 = self.res2(y1)
+            y3 = self.res3(y2)
+            y4 = self.res4(y3)
+            y4 = self.res5(y4)
+            y3 = self.res6(torch.cat((y3, F.upsample_bilinear(y4, scale_factor=2)), dim=1))
+            y2 = self.res7(torch.cat((y2, F.upsample_bilinear(y3, scale_factor=2)), dim=1))
+            y1 = self.res8(torch.cat((y1, F.upsample_bilinear(y2, scale_factor=2)), dim=1))
+            y1 = self.res9(y1)
+            m = T.Resize((H, W))
+            y = m(y)
+            y = self.sigmoid(y)
+            y_sum = torch.sum(y, dim=1, keepdim=True)
+            y = y / y_sum
+            
+
+        self.cls_output = self.classifier(org_img)
+
+        if self.hyper == 0:
+            norm_params = self.sigmoid(self.params)
+            epsilon = 1e-10
+            w_sum = torch.sum(norm_params, dim=1, keepdim=True)
+            norm_params = norm_params / (w_sum + epsilon)
+            # 64 x 3 x 1 x 1
+            img_f = F.conv2d(input=org_img, weight=norm_params)
+            if self.num_weight == 1:
+                img_f_t = self.colorTransform(img_f, self.cls_output, index_image, color_map_control)
+            else:
+                img_f_t = self.colorTransform(img_f, self.cls_output, index_image, color_map_control, y)
+        elif self.hyper == 1:
+            transform_params = self.cls_output[:,:3 * self.feature_num]
+            offset_param = self.cls_output[:,3 * self.feature_num:]
+            
+            transform_params = transform_params.reshape(N * self.feature_num, 3)
+            transform_params = self.sigmoid(transform_params)
+            epsilon = 1e-10
+            t_sum = torch.sum(transform_params, dim=1, keepdim=True)
+            transform_params = transform_params / (t_sum + epsilon)
+            transform_params = transform_params.reshape(N * self.feature_num, 3,1,1)
+            #transform_params = transform_params.permute(1,2,0,3,4)
+            #org_img = org_img.permute(1,0,2,3)
+            org_img = org_img.reshape(1, N * 3, H, W)
+            img_f = F.conv2d(input=org_img, weight=transform_params, groups=N)
+            img_f = img_f.reshape(N,self.feature_num,H,W)
+            if self.num_weight == 1:
+                img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control)
+            else:
+                img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control, y)
+
+        
+        #self.conv_emb = F.conv2d(3, self.feature_num, weight=norm_params, kernel_size=1, stride=1, padding=0, bias=False)
+        #self.temp_weight =
+        #conv_emb = nn.Conv2d(3, self.feature_num, weight= , kernel_size=1, stride=1, padding=0, bias=False)
+        out_img = self.conv_out(img_f_t)
+
+        #img_f = self.conv_emb(org_img)
+
+        return out_img
 
 class colorTransform3(nn.Module):
     def __init__(self, control_point=16, offset_param=0.04, config=0):
@@ -5502,6 +5638,74 @@ class colorTransform3(nn.Module):
         out_img_reshaped = out_img_reshaped.reshape(N, C, H, W)
         return out_img_reshaped
 
+
+class colorTransform_multi(nn.Module):
+    def __init__(self, control_point=16, offset_param=0.04, num_weight=1, config=0):
+        super(colorTransform_multi, self).__init__()
+        self.w = nn.Parameter(torch.tensor([0.5, 0.5], dtype=torch.float32))
+        self.softmax = nn.Softmax(dim=0)
+        self.control_point = control_point
+        self.sigmoid = torch.nn.Sigmoid()
+        self.config = config
+        self.feature_num = config.feature_num
+        self.num_weight = num_weight
+        self.epsilon = 1e-8
+
+        self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
+
+
+
+    def forward(self, org_img, params, color_mapping_global_a, color_map_control, weight_map):
+        #out_img = torch.zeros(N,C,H,W).cuda()
+        N, C, H, W = org_img.shape
+        #out_img = torch.zeros_like(org_img)
+
+        
+
+        img_reshaped = org_img.reshape(N, self.feature_num, -1)
+        weight_map = weight_map.reshape(N,self.num_weight, -1)
+        out_img_reshaped = torch.zeros_like(img_reshaped)
+
+        img_reshaped_val = img_reshaped * (self.control_point-1)
+
+        img_reshaped_index = torch.floor(img_reshaped * (self.control_point-1))
+        img_reshaped_index = img_reshaped_index.type(torch.int64)
+        img_reshaped_index_plus = img_reshaped_index + 1
+
+        img_reshaped_coeff = img_reshaped_val - img_reshaped_index
+        img_reshaped_coeff_one = 1.0 - img_reshaped_coeff
+        
+        params = params.reshape(N, self.feature_num, self.control_point, self.num_weight) * self.offset_param
+        
+        for w in range(0, self.num_weight):
+            cur_params = params[:,:,:, w] * self.offset_param
+            cur_weight_map = weight_map[:,w:w+1,:]
+
+            color_map_control_x = color_map_control.clone()
+        
+            color_map_control_y = color_map_control_x + cur_params
+
+            color_map_control_x = torch.cat((color_map_control_x, color_map_control_x[:, :, self.control_point-1:self.control_point]), dim=2)
+            color_map_control_y = torch.cat((color_map_control_y, color_map_control_y[:, :, self.control_point-1:self.control_point]), dim=2)
+            
+            
+            #out_img_reshaped = out_img.reshape(N, self.feature_num, -1)
+ 
+            mapped_color_map_control_y = torch.gather(color_map_control_y, 2, img_reshaped_index)
+            mapped_color_map_control_y_plus = torch.gather(color_map_control_y, 2, img_reshaped_index_plus)
+
+            out_img_reshaped += cur_weight_map * (img_reshaped_coeff_one * mapped_color_map_control_y + img_reshaped_coeff * mapped_color_map_control_y_plus)
+
+
+        # for i in range(0, self.control_point):
+        #     mask = img_reshaped_index == i
+        #     masked_img_reshaped_coeff = mask * img_reshaped_coeff
+        #     masked_img_reshaped_coeff_one = mask * img_reshaped_coeff_one
+        #     out_img_reshaped += masked_img_reshaped_coeff_one * color_map_control_y[:,:,i:i+1] + masked_img_reshaped_coeff * color_map_control_y[:,:,i+1:i+2]
+
+        out_img_reshaped = out_img_reshaped.reshape(N, C, H, W)
+        return out_img_reshaped
+    
 class colorTransform_xoffset(nn.Module):
     def __init__(self, control_point=16, offset_param=0.04, config=0):
         super(colorTransform_xoffset, self).__init__()
