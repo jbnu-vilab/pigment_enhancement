@@ -139,6 +139,7 @@ if __name__ == '__main__':
     parser.add_argument("--num_weight", dest='num_weight', type=int, default=1)
 
     parser.add_argument("--act_mode", dest='act_mode', type=str, default='sigmoid')
+    parser.add_argument("--backbone", dest='backbone', type=str, default='res')
 
     config = parser.parse_args()
     main(config)

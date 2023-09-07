@@ -154,6 +154,8 @@ class solver_IE(object):
             self.model = models_proposed.DCPNet24(config).cuda()
         elif config.m == 25:
             self.model = models_proposed.DCPNet25(config).cuda()
+        elif config.m == 26:
+            self.model = models_proposed.DCPNet26(config).cuda()
 
        
 

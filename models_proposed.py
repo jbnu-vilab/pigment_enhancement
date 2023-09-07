@@ -61,6 +61,8 @@ class convBlock(nn.Module):
             activation = nn.SiLU(inplace=True)
         elif act=='gelu':
             activation = nn.GELU()
+        elif act=='leaky':
+            activation = nn.LeakyReLU(0.1)
 
         lists = []
 
@@ -379,6 +381,8 @@ class DCPNet24(nn.Module):
         self.hyper = config.hyper
         self.xoffset = config.xoffset
 
+        self.conv_num = config.conv_num
+        self.leaky_relu = nn.LeakyReLU(0.1)
         param_num = self.control_point_num * self.feature_num
         if self.xoffset == 1:
             param_num += (self.control_point_num - 2) * self.feature_num
@@ -439,9 +443,12 @@ class DCPNet24(nn.Module):
                 img_f_t = img_f_t * 2 - 1
         elif self.hyper == 1:
             N, C, H, W = org_img.shape
-            transform_params = self.cls_output[:,:3 * self.feature_num]
-            offset_param = self.cls_output[:,3 * self.feature_num:]
-            
+            cur_idx = 3 * self.feature_num
+            transform_params = self.cls_output[:,:cur_idx]
+            offset_param = self.cls_output[:,cur_idx:]
+
+            transform_params = transform_params[:, :self.feature_num * 3]
+
             transform_params = transform_params.reshape(N * self.feature_num, 3)
             if self.act_mode == 'sigmoid':
                 transform_params = self.sigmoid(transform_params)
@@ -454,11 +461,12 @@ class DCPNet24(nn.Module):
                 w_norm = torch.sum(torch.abs(transform_params), dim=1, keepdim=True)
                 transform_params = transform_params / (w_norm + epsilon)
 
-            transform_params = transform_params.reshape(N * self.feature_num, 3,1,1)
+            transform_params = transform_params.reshape(N * self.feature_num, 3, 1, 1)
             #transform_params = transform_params.permute(1,2,0,3,4)
             #org_img = org_img.permute(1,0,2,3)
             org_img = org_img.reshape(1, N * 3, H, W)
             img_f = F.conv2d(input=org_img, weight=transform_params, groups=N)
+
             img_f = img_f.reshape(N,self.feature_num,H,W)
             if self.act_mode == 'tanh':
                 img_f = (img_f + 1.0) / 2
@@ -609,6 +617,161 @@ class DCPNet25(nn.Module):
         out_img = self.conv_out(img_f_t)
 
         #img_f = self.conv_emb(org_img)
+
+        return out_img
+
+
+class DCPNet26(nn.Module):
+    def __init__(self, config):
+        super(DCPNet26, self).__init__()
+
+        self.control_point_num = config.control_point + 2
+        self.feature_num = config.feature_num
+
+        self.hyper = config.hyper
+        self.xoffset = config.xoffset
+
+        self.conv_num = config.conv_num
+        self.leaky_relu = nn.LeakyReLU(0.1)
+        self.act = 'leaky'
+        self.backbone = config.backbone
+        param_num = self.control_point_num * self.feature_num
+        if self.xoffset == 1:
+            param_num += (self.control_point_num - 2) * self.feature_num
+        if self.hyper == 0:
+            self.classifier = resnet18_224(out_dim=param_num)
+            self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
+        elif self.hyper == 1:
+            param_num += (3 * self.feature_num)
+            if self.conv_num > 1:
+                param_num += ((self.feature_num * self.feature_num) * (self.conv_num - 1))
+            if self.backbone == 'res':
+                self.classifier = resnet18_224(out_dim=param_num)
+            elif self.backbone == 'vit':
+                self.upsample = nn.Upsample(size=(config.patch_size, config.patch_size), mode='bilinear')
+                self.conv1 = convBlock(input_feature=3, output_feature=16, ksize=3, stride=2, pad=1, act=self.act)
+                self.conv2 = convBlock(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)
+                self.conv3 = convBlock(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)
+                self.conv4 = convBlock(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act)
+                self.transformer = ViT2(image_size=config.patch_size, patch_size=16, num_classes=128, dim=128, depth=2,
+                                        heads=16,
+                                        mlp_dim=512,
+                                        pool='cls', dim_head=64, dropout=0.1)
+                self.color_conv_global = convBlock2(input_feature=128, output_feature=param_num, ksize=1,
+                                                    stride=1, pad=0, extra_conv=True, act=self.act)
+
+
+        if config.xoffset == 0:
+            self.colorTransform = colorTransform3(self.control_point_num, config.offset_param, config)
+        else:
+            self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config)
+        if config.conv_mode == 3:
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+        elif config.conv_mode == 1:
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+
+        self.sigmoid = nn.Sigmoid()
+        self.tanh = nn.Tanh()
+        self.act_mode = config.act_mode
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+
+    def forward(self, org_img, index_image, color_map_control):
+        if self.backbone == 'res':
+            self.cls_output = self.classifier(org_img)
+        elif self.backbone == 'vit':
+            resized = self.upsample(org_img)
+            x1 = self.conv1(resized)
+            x2 = self.conv2(x1)
+            x3 = self.conv3(x2)
+            x4 = self.conv4(x3)
+            x5 = self.transformer(x4)
+            x5 = torch.transpose(x5, 1, 2)
+            x5_global = x5[:, :, 0]
+            x5_global = x5_global.unsqueeze(2).unsqueeze(3)
+            self.cls_output = self.color_conv_global(x5_global)
+        if self.hyper == 0:
+            if self.act_mode == 'sigmoid':
+                norm_params = self.sigmoid(self.params)
+                epsilon = 1e-10
+                w_sum = torch.sum(torch.abs(norm_params), dim=1, keepdim=True)
+                norm_params = norm_params / (w_sum + epsilon)
+            elif self.act_mode == 'tanh':
+                norm_params = self.tanh(self.params)
+                epsilon = 1e-10
+                w_norm = torch.norm(norm_params, dim=1, keepdim=True)
+                norm_params = norm_params / (w_norm + epsilon)
+
+            # 64 x 3 x 1 x 1
+            img_f = F.conv2d(input=org_img, weight=norm_params)
+            if self.act_mode == 'tanh':
+                img_f = (img_f + 1) / 2
+            img_f_t = self.colorTransform(img_f, self.cls_output, index_image, color_map_control)
+            if self.act_mode == 'tanh':
+                img_f_t = img_f_t * 2 - 1
+        elif self.hyper == 1:
+            N, C, H, W = org_img.shape
+            cur_idx = 3 * self.feature_num
+            if self.conv_num > 1:
+                cur_idx += ((self.feature_num * self.feature_num) * (self.conv_num - 1))
+            transform_params = self.cls_output[:, :cur_idx]
+            offset_param = self.cls_output[:, cur_idx:]
+
+            transform_params1 = transform_params[:, :self.feature_num * 3]
+            transform_params1 = transform_params1.reshape(N * self.feature_num, 3)
+            if self.act_mode == 'sigmoid':
+                transform_params1 = self.sigmoid(transform_params1)
+                epsilon = 1e-10
+                t_sum = torch.sum(transform_params1, dim=1, keepdim=True)
+                transform_params1 = transform_params1 / (t_sum + epsilon)
+            elif self.act_mode == 'tanh':
+                transform_params1 = self.tanh(transform_params1)
+                epsilon = 1e-10
+                w_norm = torch.sum(torch.abs(transform_params1), dim=1, keepdim=True)
+                transform_params1 = transform_params1 / (w_norm + epsilon)
+            elif self.act_mode == 'none':
+                transform_params1 = transform_params1
+
+            transform_params1 = transform_params1.reshape(N * self.feature_num, 3, 1, 1)
+            # transform_params1 = transform_params1.permute(1,2,0,3,4)
+            # org_img = org_img.permute(1,0,2,3)
+            org_img = org_img.reshape(1, N * 3, H, W)
+            img_f = F.conv2d(input=org_img, weight=transform_params1, groups=N)
+            if self.conv_num == 1:
+                if self.act_mode == 'none':
+                    img_f = self.sigmoid(img_f)
+            elif self.conv_num > 1:
+                img_f = self.leaky_relu(img_f)
+                cur_idx = 3 * self.feature_num
+                for c in range(0, self.conv_num - 1):
+                    add_transform_params = transform_params[:, cur_idx:cur_idx + self.feature_num ** 2]
+                    cur_idx += self.feature_num ** 2
+                    add_transform_params = add_transform_params.reshape(N * self.feature_num, self.feature_num, 1, 1)
+                    img_f = F.conv2d(input=img_f, weight=add_transform_params, groups=N)
+                img_f = self.sigmoid(img_f)
+
+            img_f = img_f.reshape(N, self.feature_num, H, W)
+            if self.act_mode == 'tanh':
+                img_f = (img_f + 1.0) / 2
+                img_f = torch.clamp(img_f, 0, 1)
+            img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control)
+            if self.act_mode == 'tanh':
+                img_f_t = img_f_t * 2.0 - 1
+
+        # self.conv_emb = F.conv2d(3, self.feature_num, weight=norm_params, kernel_size=1, stride=1, padding=0, bias=False)
+        # self.temp_weight =
+        # conv_emb = nn.Conv2d(3, self.feature_num, weight= , kernel_size=1, stride=1, padding=0, bias=False)
+        out_img = self.conv_out(img_f_t)
+
+        # img_f = self.conv_emb(org_img)
 
         return out_img
 
