@@ -275,7 +275,7 @@ class DCPNet23(nn.Module):
 
         self.control_point_num = config.control_point + 2
         self.feature_num = config.feature_num
-        self.classifier = resnet18_224(out_dim=self.control_point_num * self.feature_num)
+        self.classifier = resnet18_224(out_dim=self.control_point_num * self.feature_num, res_num=config.res_num)
         self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
 
         self.colorTransform = colorTransform2(self.control_point_num, config.offset_param, config)
@@ -387,11 +387,11 @@ class DCPNet24(nn.Module):
         if self.xoffset == 1:
             param_num += (self.control_point_num - 2) * self.feature_num
         if self.hyper == 0:    
-            self.classifier = resnet18_224(out_dim=param_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_num=config.res_num)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
             param_num += (3 * self.feature_num)
-            self.classifier = resnet18_224(out_dim=param_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_num=config.res_num)
 
         
         if config.xoffset == 0:
@@ -502,11 +502,11 @@ class DCPNet25(nn.Module):
         if self.xoffset == 1:
             param_num += (self.control_point_num - 2) * self.feature_num
         if self.hyper == 0:    
-            self.classifier = resnet18_224(out_dim=param_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_num=config.res_num)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
             param_num += (3 * self.feature_num)
-            self.classifier = resnet18_224(out_dim=param_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_num=config.res_num)
 
         
         if self.num_weight > 1:
@@ -639,26 +639,25 @@ class DCPNet26(nn.Module):
         if self.xoffset == 1:
             param_num += (self.control_point_num - 2) * self.feature_num
         if self.hyper == 0:
-            self.classifier = resnet18_224(out_dim=param_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_num=config.res_num)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
             param_num += (3 * self.feature_num)
             if self.conv_num > 1:
                 param_num += ((self.feature_num * self.feature_num) * (self.conv_num - 1))
             if self.backbone == 'res':
-                self.classifier = resnet18_224(out_dim=param_num)
+                self.classifier = resnet18_224(out_dim=param_num, res_num=config.res_num)
             elif self.backbone == 'vit':
-                self.upsample = nn.Upsample(size=(config.patch_size, config.patch_size), mode='bilinear')
-                self.conv1 = convBlock(input_feature=3, output_feature=16, ksize=3, stride=2, pad=1, act=self.act)
-                self.conv2 = convBlock(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)
-                self.conv3 = convBlock(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)
-                self.conv4 = convBlock(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act)
-                self.transformer = ViT2(image_size=config.patch_size, patch_size=16, num_classes=128, dim=128, depth=2,
-                                        heads=16,
-                                        mlp_dim=512,
-                                        pool='cls', dim_head=64, dropout=0.1)
-                self.color_conv_global = convBlock2(input_feature=128, output_feature=param_num, ksize=1,
-                                                    stride=1, pad=0, extra_conv=True, act=self.act)
+                lists = []
+                lists.append(nn.Upsample(size=(config.patch_size, config.patch_size), mode='bilinear'))
+                lists.append(convBlock(input_feature=3, output_feature=16, ksize=3, stride=2, pad=1, act=self.act))
+                lists.append(convBlock(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act))
+                lists.append(convBlock(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act))
+                lists.append(convBlock(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act))
+                lists.append(ViT2(image_size=config.patch_size, patch_size=16, num_classes=128, dim=128, depth=2, heads=16, mlp_dim=512, pool='cls', dim_head=64, dropout=0.1))
+                self.color_conv_global = convBlock2(input_feature=128, output_feature=param_num, ksize=1, stride=1, pad=0, extra_conv=True, act=self.act)
+                #lists.append(convBlock2(input_feature=128, output_feature=param_num, ksize=1, stride=1, pad=0, extra_conv=True, act=self.act))
+                self.classifier = nn.Sequential(*lists)
 
 
         if config.xoffset == 0:
@@ -688,12 +687,7 @@ class DCPNet26(nn.Module):
         if self.backbone == 'res':
             self.cls_output = self.classifier(org_img)
         elif self.backbone == 'vit':
-            resized = self.upsample(org_img)
-            x1 = self.conv1(resized)
-            x2 = self.conv2(x1)
-            x3 = self.conv3(x2)
-            x4 = self.conv4(x3)
-            x5 = self.transformer(x4)
+            x5 = self.classifier(org_img)
             x5 = torch.transpose(x5, 1, 2)
             x5_global = x5[:, :, 0]
             x5_global = x5_global.unsqueeze(2).unsqueeze(3)
@@ -974,11 +968,16 @@ class colorTransform_xoffset(nn.Module):
 
 class resnet18_224(nn.Module):
 
-    def __init__(self, out_dim=5, aug_test=False):
+    def __init__(self, out_dim=5, res_num=18, aug_test=False):
         super(resnet18_224, self).__init__()
 
         self.aug_test = aug_test
-        net = models.resnet18(pretrained=True)
+        if res_num == 18:
+            net = models.resnet18(pretrained=True)
+        elif res_num == 34:
+            net = models.resnet34(pretrained=True)
+        elif res_num == 50:
+            net = models.resnet50(pretrained=True)
         # self.mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).cuda()
         # self.std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).cuda()
 

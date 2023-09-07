@@ -162,6 +162,7 @@ class solver_IE(object):
         self.PSNR = PSNR().cuda()
         self.PSNR.training = False
         self.lr = config.lr
+        self.lrratio = config.lrratio
         self.weight_decay = config.weight_decay
 
         train_loader = data_loader.DataLoader(config.dataset, path, config=config, batch_size=config.batch_size, istrain=True, num_workers=config.num_workers)
@@ -169,7 +170,14 @@ class solver_IE(object):
 
         batch_step_num = math.ceil(train_loader.data.__len__() / config.batch_size)
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        backbone_params = list(map(id, self.model.classifier.parameters()))
+        self.hypernet_params = filter(lambda p: id(p) not in backbone_params, self.model.parameters())
+        self.paras = [{'params': self.hypernet_params, 'lr': self.lr * self.lrratio},
+                      {'params': self.model.classifier.parameters(), 'lr': self.lr}
+                      ]
+        self.optimizer = torch.optim.Adam(self.paras, weight_decay=self.weight_decay)
+
+        #self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
 
         if config.scheduler == 'cos_warmup':
             self.scheduler = WarmupCosineSchedule(self.optimizer, warmup_steps=math.ceil(batch_step_num * config.warmup_step), t_total=batch_step_num * config.epochs, cycles=0.5)
