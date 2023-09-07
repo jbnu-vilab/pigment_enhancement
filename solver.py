@@ -10,7 +10,6 @@ import math
 import torch
 from scheduler import WarmupCosineSchedule
 from torchvision.utils import save_image
-from models_proposed import DCPNet, DCPNet2
 from vggloss import VGGPerceptualLoss, VGGContrastiveLoss
 import lpips
 import models_proposed
@@ -149,49 +148,7 @@ class solver_IE(object):
         self.total_variation_loss = total_variation_loss().to(device)
 
         #self.model = DCPNet(config).cuda()
-        if config.m == 0:
-            self.model = DCPNet2(config).cuda()
-        elif config.m == 1:
-            self.model = models_proposed.DCPNet3(config).cuda()
-        elif config.m == 2:
-            self.model = models_proposed.DCPNet4(config).cuda()
-        elif config.m == 3:
-            self.model = models_proposed.DCPNet5(config).cuda()
-        elif config.m == 4:
-            self.model = models_proposed.DCPNet6(config).cuda()
-        elif config.m == 5:
-            self.model = models_proposed.DCPNet7(config).cuda()
-        elif config.m == 6:
-            self.model = models_proposed.DCPNet8(config).cuda()
-        elif config.m == 9:
-            self.model = models_proposed.DCPNet9(config).cuda()
-        elif config.m == 10:
-            self.model = models_proposed.DCPNet10(config).cuda()    
-        elif config.m == 11:
-            self.model = models_proposed.DCPNet11(config).cuda()    
-        elif config.m == 12:
-            self.model = models_proposed.DCPNet12(config).cuda()    
-        elif config.m == 13:
-            self.model = models_proposed.DCPNet13(config).cuda()    
-        elif config.m == 14:
-            self.model = models_proposed.DCPNet14(config).cuda()
-        elif config.m == 15:
-            self.model = models_proposed.DCPNet15(config).cuda()
-        elif config.m == 16:
-            self.model = models_proposed.DCPNet16(config).cuda()
-        elif config.m == 17:
-            self.model = models_proposed.DCPNet17(config).cuda()
-        elif config.m == 18:
-            self.model = models_proposed.DCPNet18(config).cuda()
-        elif config.m == 19:
-            self.model = models_proposed.DCPNet19(config).cuda()
-        elif config.m == 20:
-            self.model = models_proposed.DCPNet20(config).cuda()
-        elif config.m == 21:
-            self.model = models_proposed.DCPNet21(config).cuda()
-        elif config.m == 22:
-            self.model = models_proposed.DCPNet22(config).cuda()
-        elif config.m == 23:
+        if config.m == 23:
             self.model = models_proposed.DCPNet23(config).cuda()
         elif config.m == 24:
             self.model = models_proposed.DCPNet24(config).cuda()
@@ -299,37 +256,14 @@ class solver_IE(object):
                     loss_weight = [0, 0, 0.1]
                 elif self.weight_mode == 6:
                     loss_weight = [0.02, 0.05, 0.1]
-                if self.m == 13:
-                    pred, img_f, gt_f = self.model(img, label, index, color_position, train=1)
-                    if self.vgg_loss == 0:
-                        loss = self.l1_loss(pred, label) + self.tv * self.total_variation_loss(pred, label)
-                    else:
-                        if self.contrastive == 0:
-                            loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(pred, label) + self.tv * self.total_variation_loss(pred, label)
-                        elif self.contrastive == 1:
-                            loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(img, pred, label) + self.tv * self.total_variation_loss(pred, label)
-                    
-                    for it in range(0,self.iter_num):
-                        loss = loss + loss_weight[it] * self.l1_loss(img_f[it+1], gt_f)
-                    
-                    if self.style_loss > 0:
-                        target_feature = label.detach()
-                        style_loss = StyleLoss(target_feature)
-                        loss = loss + self.style_loss * style_loss(pred)
-                        
-                        # img_f[1] vs gt_f
-                        # im_f
 
+
+
+                pred = self.model(img, index, color_position)
+                if self.vgg_loss == 0:
+                    loss = self.l1_loss(pred, label)
                 else:
-                    pred = self.model(img, index, color_position)
-                    if self.vgg_loss == 0:
-                        loss = self.l1_loss(pred, label) + self.tv * self.total_variation_loss(pred, label)
-                    else:
-                        if self.contrastive == 0:
-                            loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(pred, label) + self.tv * self.total_variation_loss(pred, label)
-                        elif self.contrastive == 1:
-                            loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(img, pred, label) + self.tv * self.total_variation_loss(pred, label)
-
+                    loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(pred, label)
 
                 loss.backward()
                 self.optimizer.step()
@@ -460,25 +394,13 @@ class solver_IE(object):
 
 
 
-            if self.m == 13:
-                pred, img_f, gt_f = self.model(img, label, index, color_position, train=0)
-                if self.vgg_loss == 0:
-                    loss = self.l1_loss(pred, label) + self.tv * self.total_variation_loss(pred, label)
-                else:
-                    if self.contrastive == 0:
-                        loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(pred, label) + self.tv * self.total_variation_loss(pred, label)
-                    elif self.contrastive == 1:
-                        loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(img, pred, label) + self.tv * self.total_variation_loss(pred, label)
-            else:            
-                pred = self.model(img, index, color_position)
 
-                if self.vgg_loss == 0:
-                    loss = self.l1_loss(pred, label) + self.tv * self.total_variation_loss(pred, label)
-                else:
-                    if self.contrastive == 0:
-                        loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(pred, label) + self.tv * self.total_variation_loss(pred, label)
-                    elif self.contrastive == 1:
-                        loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(img, pred, label) + self.tv * self.total_variation_loss(pred, label)
+            pred = self.model(img, index, color_position)
+
+            if self.vgg_loss == 0:
+                loss = self.l1_loss(pred, label)
+            else:
+                loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(pred, label)
             epoch_loss = epoch_loss + loss.detach().cpu().numpy()
 
             if self.norm == 1:

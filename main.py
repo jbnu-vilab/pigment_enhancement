@@ -38,6 +38,7 @@ def main(config):
         np.random.seed(config.seed)
         random.seed(config.seed)
 
+    #torch.backends.cudnn.enabled = False
     torch.cuda.set_device(0)
 
     if config.test == False:
@@ -136,6 +137,8 @@ if __name__ == '__main__':
     parser.add_argument("--xoffset", dest='xoffset', type=int, default=0)
 
     parser.add_argument("--num_weight", dest='num_weight', type=int, default=1)
+
+    parser.add_argument("--act_mode", dest='act_mode', type=str, default='sigmoid')
 
     config = parser.parse_args()
     main(config)
