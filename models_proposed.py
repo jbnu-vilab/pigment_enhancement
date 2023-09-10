@@ -275,7 +275,7 @@ class DCPNet23(nn.Module):
 
         self.control_point_num = config.control_point + 2
         self.feature_num = config.feature_num
-        self.classifier = resnet18_224(out_dim=self.control_point_num * self.feature_num, res_num=config.res_num)
+        self.classifier = resnet18_224(out_dim=self.control_point_num * self.feature_num, res_size=config.res_size, res_num=config.res_num)
         self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
 
         self.colorTransform = colorTransform2(self.control_point_num, config.offset_param, config)
@@ -387,11 +387,11 @@ class DCPNet24(nn.Module):
         if self.xoffset == 1:
             param_num += (self.control_point_num - 2) * self.feature_num
         if self.hyper == 0:    
-            self.classifier = resnet18_224(out_dim=param_num, res_num=config.res_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
             param_num += (3 * self.feature_num)
-            self.classifier = resnet18_224(out_dim=param_num, res_num=config.res_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
 
         
         if config.xoffset == 0:
@@ -502,11 +502,11 @@ class DCPNet25(nn.Module):
         if self.xoffset == 1:
             param_num += (self.control_point_num - 2) * self.feature_num
         if self.hyper == 0:    
-            self.classifier = resnet18_224(out_dim=param_num, res_num=config.res_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
             param_num += (3 * self.feature_num)
-            self.classifier = resnet18_224(out_dim=param_num, res_num=config.res_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
 
         
         if self.num_weight > 1:
@@ -639,14 +639,14 @@ class DCPNet26(nn.Module):
         if self.xoffset == 1:
             param_num += (self.control_point_num - 2) * self.feature_num
         if self.hyper == 0:
-            self.classifier = resnet18_224(out_dim=param_num, res_num=config.res_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
             param_num += (3 * self.feature_num)
             if self.conv_num > 1:
                 param_num += ((self.feature_num * self.feature_num) * (self.conv_num - 1))
             if self.backbone == 'res':
-                self.classifier = resnet18_224(out_dim=param_num, res_num=config.res_num)
+                self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
             elif self.backbone == 'vit':
                 lists = []
                 lists.append(nn.Upsample(size=(config.patch_size, config.patch_size), mode='bilinear'))
@@ -968,7 +968,7 @@ class colorTransform_xoffset(nn.Module):
 
 class resnet18_224(nn.Module):
 
-    def __init__(self, out_dim=5, res_num=18, aug_test=False):
+    def __init__(self, out_dim=5, res_num=18, res_size=224, aug_test=False):
         super(resnet18_224, self).__init__()
 
         self.aug_test = aug_test
@@ -981,7 +981,7 @@ class resnet18_224(nn.Module):
         # self.mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).cuda()
         # self.std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).cuda()
 
-        self.upsample = nn.Upsample(size=(224, 224), mode='bilinear')
+        self.upsample = nn.Upsample(size=(res_size, res_size), mode='bilinear')
         net.fc = nn.Linear(512, out_dim)
         self.model = net
 

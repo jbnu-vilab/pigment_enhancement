@@ -144,6 +144,8 @@ if __name__ == '__main__':
     parser.add_argument("--res_num", dest='res_num', type=int, default=18)
     parser.add_argument("--lrratio", dest='lrratio', type=int, default=1)
 
+    parser.add_argument("--res_size", dest='res_size', type=int, default=224)
+
     config = parser.parse_args()
     main(config)
 
