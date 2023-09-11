@@ -145,7 +145,8 @@ if __name__ == '__main__':
     parser.add_argument("--lrratio", dest='lrratio', type=int, default=1)
 
     parser.add_argument("--res_size", dest='res_size', type=int, default=224)
-
+    
+    parser.add_argument("--local_size", dest='local_size', type=int, default=256)
     config = parser.parse_args()
     main(config)
 

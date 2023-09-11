@@ -420,6 +420,7 @@ class DCPNet24(nn.Module):
                 nn.init.constant_(m.bias, 0.0)
 
     def forward(self, org_img, index_image, color_map_control):
+
         self.cls_output = self.classifier(org_img)
 
         if self.hyper == 0:
@@ -524,7 +525,7 @@ class DCPNet25(nn.Module):
         
         self.act = 'leaky'
         if self.num_weight > 1:
-            self.resize = T.Resize((256, 256))
+            self.resize = T.Resize((config.local_size, config.local_size))
             self.res1 = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
             self.res2 = convBlock2(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)  # s2
             self.res3 = convBlock2(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)  # s3
@@ -769,6 +770,287 @@ class DCPNet26(nn.Module):
 
         return out_img
 
+
+class DCPNet27(nn.Module):
+    def __init__(self, config):
+        super(DCPNet27, self).__init__()
+
+        self.control_point_num = config.control_point + 2
+        self.feature_num = config.feature_num
+        
+        self.hyper = config.hyper
+        self.xoffset = config.xoffset
+
+        self.num_weight = config.num_weight
+
+        param_num = self.control_point_num * self.feature_num * config.num_weight
+        if self.xoffset == 1:
+            param_num += (self.control_point_num - 2) * self.feature_num
+        if self.hyper == 0:    
+            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
+            self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
+        elif self.hyper == 1:
+            param_num += (3 * self.feature_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
+
+        
+        if self.num_weight > 1:
+            self.colorTransform = colorTransform_multi(self.control_point_num, config.offset_param, self.num_weight, config)
+        else:    
+            if config.xoffset == 0:
+                self.colorTransform = colorTransform3(self.control_point_num, config.offset_param, config)
+            else:
+                self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config)
+        if config.conv_mode == 3:
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+        elif config.conv_mode == 1:
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+        
+        
+        self.act = 'leaky'
+        if self.num_weight > 1:
+            self.resize = T.Resize((config.local_size, config.local_size))
+            self.res1 = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+            self.res2 = convBlock2(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)  # s2
+            self.res3 = convBlock2(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)  # s3
+
+            self.res4 = convBlock2(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act)  # s4
+
+            self.res5 = convBlock2(input_feature=128, output_feature=256, ksize=3, stride=2, pad=1, act=self.act)  # s5
+
+            self.res6 = convBlock2(input_feature=256, output_feature=256, ksize=3, stride=1, pad=1, act=self.act)  # s5
+
+            # upsample and concat
+            self.res7 = convBlock2(input_feature=384, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)  # s4
+
+            # upsample and concat
+            self.res8 = convBlock2(input_feature=192, output_feature=64, ksize=3, stride=1, pad=1, act=self.act)  # s3
+
+             # upsample and concat
+            self.res9 = convBlock2(input_feature=96, output_feature=32, ksize=3, stride=1, pad=1, act=self.act)  # s2
+
+            # upsample and concat
+            self.res10 = convBlock2(input_feature=48, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+
+            self.res11 = nn.Conv2d(16, self.num_weight, kernel_size=3, padding=1)
+
+        self.sigmoid = nn.Sigmoid()
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+
+    def forward(self, org_img, index_image, color_map_control):
+        N, C, H, W = org_img.shape
+        if self.num_weight > 1:
+            y = self.resize(org_img)
+            y1 = self.res1(y)
+            y2 = self.res2(y1)
+            y3 = self.res3(y2)
+            y4 = self.res4(y3)
+            y5 = self.res5(y4)
+            y5 = self.res6(y5)
+            y4 = self.res7(torch.cat((y4, F.upsample_bilinear(y5, scale_factor=2)), dim=1))
+            y3 = self.res8(torch.cat((y3, F.upsample_bilinear(y4, scale_factor=2)), dim=1))
+            y2 = self.res9(torch.cat((y2, F.upsample_bilinear(y3, scale_factor=2)), dim=1))
+            y1 = self.res10(torch.cat((y1, F.upsample_bilinear(y2, scale_factor=2)), dim=1))
+            y1 = self.res11(y1)
+            m = T.Resize((H, W))
+            y = m(y)
+            y = self.sigmoid(y)
+            y_sum = torch.sum(y, dim=1, keepdim=True)
+            y = y / y_sum
+            
+
+        self.cls_output = self.classifier(org_img)
+
+        if self.hyper == 0:
+            norm_params = self.sigmoid(self.params)
+            epsilon = 1e-10
+            w_sum = torch.sum(norm_params, dim=1, keepdim=True)
+            norm_params = norm_params / (w_sum + epsilon)
+            # 64 x 3 x 1 x 1
+            img_f = F.conv2d(input=org_img, weight=norm_params)
+            if self.num_weight == 1:
+                img_f_t = self.colorTransform(img_f, self.cls_output, index_image, color_map_control)
+            else:
+                img_f_t = self.colorTransform(img_f, self.cls_output, index_image, color_map_control, y)
+        elif self.hyper == 1:
+            transform_params = self.cls_output[:,:3 * self.feature_num]
+            offset_param = self.cls_output[:,3 * self.feature_num:]
+            
+            transform_params = transform_params.reshape(N * self.feature_num, 3)
+            transform_params = self.sigmoid(transform_params)
+            epsilon = 1e-10
+            t_sum = torch.sum(transform_params, dim=1, keepdim=True)
+            transform_params = transform_params / (t_sum + epsilon)
+            transform_params = transform_params.reshape(N * self.feature_num, 3,1,1)
+            #transform_params = transform_params.permute(1,2,0,3,4)
+            #org_img = org_img.permute(1,0,2,3)
+            org_img = org_img.reshape(1, N * 3, H, W)
+            img_f = F.conv2d(input=org_img, weight=transform_params, groups=N)
+            img_f = img_f.reshape(N,self.feature_num,H,W)
+            if self.num_weight == 1:
+                img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control)
+            else:
+                img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control, y)
+
+        
+        #self.conv_emb = F.conv2d(3, self.feature_num, weight=norm_params, kernel_size=1, stride=1, padding=0, bias=False)
+        #self.temp_weight =
+        #conv_emb = nn.Conv2d(3, self.feature_num, weight= , kernel_size=1, stride=1, padding=0, bias=False)
+        out_img = self.conv_out(img_f_t)
+
+        #img_f = self.conv_emb(org_img)
+
+        return out_img
+
+
+class DCPNet28(nn.Module):
+    def __init__(self, config):
+        super(DCPNet28, self).__init__()
+
+        self.control_point_num = config.control_point + 2
+        self.feature_num = config.feature_num
+        
+        self.hyper = config.hyper
+        self.xoffset = config.xoffset
+
+        self.num_weight = config.num_weight
+
+        param_num = self.control_point_num * self.feature_num * config.num_weight
+        if self.xoffset == 1:
+            param_num += (self.control_point_num - 2) * self.feature_num
+        if self.hyper == 0:    
+            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
+            self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
+        elif self.hyper == 1:
+            param_num += (3 * self.feature_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
+
+        
+        self.colorTransform = colorTransform3(self.control_point_num, config.offset_param, config)
+        if config.conv_mode == 3:
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+        elif config.conv_mode == 1:
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+        
+        
+        self.act = 'leaky'
+        if self.num_weight >= 0:
+            self.resize = T.Resize((config.local_size, config.local_size))
+            self.res1 = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+            self.res2 = convBlock2(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)  # s2
+            self.res3 = convBlock2(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)  # s3
+
+            self.res4 = convBlock2(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act)  # s4
+
+            self.res5 = convBlock2(input_feature=128, output_feature=256, ksize=3, stride=2, pad=1, act=self.act)  # s5
+
+            self.res6 = convBlock2(input_feature=256, output_feature=256, ksize=3, stride=1, pad=1, act=self.act)  # s5
+
+            # upsample and concat
+            self.res7 = convBlock2(input_feature=384, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)  # s4
+
+            # upsample and concat
+            self.res8 = convBlock2(input_feature=192, output_feature=64, ksize=3, stride=1, pad=1, act=self.act)  # s3
+
+             # upsample and concat
+            self.res9 = convBlock2(input_feature=96, output_feature=32, ksize=3, stride=1, pad=1, act=self.act)  # s2
+
+            # upsample and concat
+            #self.res10 = convBlock2(input_feature=48, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+            self.res10 = convBlock2(input_feature=48, output_feature=self.feature_num * 3, ksize=3, stride=1, pad=1, act=self.act)  # s1
+
+            #self.res11 = nn.Conv2d(16, self.num_weight, kernel_size=3, padding=1)
+
+        self.sigmoid = nn.Sigmoid()
+        self.tanh = nn.Tanh()
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+
+    def forward(self, org_img, index_image, color_map_control):
+        N, C, H, W = org_img.shape
+        if self.num_weight >= 1:
+            y = self.resize(org_img)
+            y1 = self.res1(y)
+            y2 = self.res2(y1)
+            y3 = self.res3(y2)
+            y4 = self.res4(y3)
+            y5 = self.res5(y4)
+            y5 = self.res6(y5)
+            y4 = self.res7(torch.cat((y4, F.upsample_bilinear(y5, scale_factor=2)), dim=1))
+            y3 = self.res8(torch.cat((y3, F.upsample_bilinear(y4, scale_factor=2)), dim=1))
+            y2 = self.res9(torch.cat((y2, F.upsample_bilinear(y3, scale_factor=2)), dim=1))
+            y = self.res10(torch.cat((y1, F.upsample_bilinear(y2, scale_factor=2)), dim=1))
+            m = T.Resize((H, W))
+            y = m(y)
+            y = self.tanh(y)
+            # y.
+
+        self.cls_output = self.classifier(org_img)
+
+        if self.hyper == 0:
+            norm_params = self.sigmoid(self.params)
+            epsilon = 1e-10
+            w_sum = torch.sum(norm_params, dim=1, keepdim=True)
+            norm_params = norm_params / (w_sum + epsilon)
+            # 64 x 3 x 1 x 1
+            img_f = F.conv2d(input=org_img, weight=norm_params)
+            if self.num_weight == 1:
+                img_f_t = self.colorTransform(img_f, self.cls_output, index_image, color_map_control)
+            else:
+                img_f_t = self.colorTransform(img_f, self.cls_output, index_image, color_map_control, y)
+        elif self.hyper == 1:
+            transform_params = self.cls_output[:,:3 * self.feature_num]
+            offset_param = self.cls_output[:,3 * self.feature_num:]
+            
+            transform_params = transform_params.reshape(N * self.feature_num, 3)
+            transform_params = self.sigmoid(transform_params)
+            epsilon = 1e-10
+            t_sum = torch.sum(transform_params, dim=1, keepdim=True)
+            transform_params = transform_params / (t_sum + epsilon)
+            transform_params = transform_params.reshape(N * self.feature_num, 3,1,1)
+            #transform_params = transform_params.permute(1,2,0,3,4)
+            #org_img = org_img.permute(1,0,2,3)
+            org_img = org_img.reshape(1, N * 3, H, W)
+            img_f = F.conv2d(input=org_img, weight=transform_params, groups=N)
+            img_f = img_f.reshape(N,self.feature_num,H,W)
+            if self.num_weight == 1:
+                img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control)
+            else:
+                img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control, y)
+
+        
+        #self.conv_emb = F.conv2d(3, self.feature_num, weight=norm_params, kernel_size=1, stride=1, padding=0, bias=False)
+        #self.temp_weight =
+        #conv_emb = nn.Conv2d(3, self.feature_num, weight= , kernel_size=1, stride=1, padding=0, bias=False)
+
+        img_f_t = img_f_t.repeat(1,3,1,1)
+        img_f_t = img_f_t.reshape(N, self.feature_num, 3, H, W)
+        y = y.reshape(N, self.feature_num, 3, H, W)
+        out_img = img_f_t * y
+        out_img = torch.sum(out_img, dim=1)
+        #out_img = self.conv_out(img_f_t)
+
+        #img_f = self.conv_emb(org_img)
+
+        return out_img
+
 class colorTransform3(nn.Module):
     def __init__(self, control_point=16, offset_param=0.04, config=0):
         super(colorTransform3, self).__init__()
@@ -978,11 +1260,18 @@ class resnet18_224(nn.Module):
             net = models.resnet34(pretrained=True)
         elif res_num == 50:
             net = models.resnet50(pretrained=True)
+        elif res_num == 101:
+            net = models.resnet101(pretrained=True)
         # self.mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).cuda()
         # self.std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).cuda()
-
-        self.upsample = nn.Upsample(size=(res_size, res_size), mode='bilinear')
-        net.fc = nn.Linear(512, out_dim)
+        if res_size == 0:
+            self.upsample = nn.Identity()
+        else:
+            self.upsample = nn.Upsample(size=(res_size, res_size), mode='bilinear')
+        if res_num >= 50:
+            net.fc = nn.Linear(2048, out_dim)
+        else:
+            net.fc = nn.Linear(512, out_dim)
         self.model = net
 
     def forward(self, x):
@@ -991,5 +1280,4 @@ class resnet18_224(nn.Module):
             # x = torch.cat((x, torch.rot90(x, 1, [2, 3]), torch.rot90(x, 3, [2, 3])), 0)
             x = torch.cat((x, torch.flip(x, [3])), 0)
         f = self.model(x)
-
         return f
