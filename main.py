@@ -86,7 +86,7 @@ if __name__ == '__main__':
     parser.add_argument("--test_step", type=int, default=1)
 
     parser.add_argument("--global", dest='global_m', type=int, default=1)
-    parser.add_argument("--residual", dest='residual', type=int, default=1)
+    parser.add_argument("--residual", dest='residual', type=int, default=0)
 
     parser.add_argument("--control_point", dest='control_point', type=int, default=14)
 

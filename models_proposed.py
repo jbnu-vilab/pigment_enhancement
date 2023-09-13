@@ -384,13 +384,15 @@ class DCPNet24(nn.Module):
         self.conv_num = config.conv_num
         self.last_hyper = config.last_hyper
 
+        self.residual = config.residual
+
         self.leaky_relu = nn.LeakyReLU(0.1)
         param_num = (self.control_point_num * self.feature_num) * self.transform_num
 
         if self.last_hyper == 1:
             param_num += (3 * self.feature_num)
         if self.xoffset == 1:
-            param_num += ((self.control_point_num - 2) * self.feature_num) * self.transform_numra
+            param_num += ((self.control_point_num - 2) * self.feature_num) * self.transform_num
         if self.hyper == 0:    
             self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
@@ -505,7 +507,9 @@ class DCPNet24(nn.Module):
             out_img = self.conv_out(img_f_t)
 
         #img_f = self.conv_emb(org_img)
-
+        if self.residual == 1:
+            org_img = org_img.reshape(N, 3, H, W)
+            out_img = out_img + org_img
         return out_img
 
 
@@ -523,7 +527,7 @@ class DCPNet25(nn.Module):
         self.hyper2 = config.hyper2
 
         if self.hyper2 == 0:
-            self.offset_params = nn.Parameter(torch.randn(1,self.control_point_num * self.feature_num) * 0.04) 
+            self.offset_params = nn.Parameter(torch.randn(1,self.control_point_num * self.feature_num * self.num_weight) * 0.04) 
 
         self.param_num = self.control_point_num * self.feature_num * config.num_weight
         self.res_guide = config.res_guide
@@ -913,7 +917,7 @@ class DCPNet27(nn.Module):
             y1 = self.res10(torch.cat((y1, F.upsample_bilinear(y2, scale_factor=2)), dim=1))
             y1 = self.res11(y1)
             m = T.Resize((H, W))
-            y = m(y)
+            y = m(y1)
             y = self.sigmoid(y)
             y_sum = torch.sum(y, dim=1, keepdim=True)
             y = y / y_sum
