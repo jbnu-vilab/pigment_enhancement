@@ -147,6 +147,12 @@ if __name__ == '__main__':
     parser.add_argument("--res_size", dest='res_size', type=int, default=224)
     
     parser.add_argument("--local_size", dest='local_size', type=int, default=256)
+
+    parser.add_argument("--res_guide", dest='res_guide', type=int, default=0)
+    parser.add_argument("--transform_num", dest='transform_num', type=int, default=1)
+
+    parser.add_argument("--hyper2", dest='hyper2', type=int, default=1)
+    parser.add_argument("--last_hyper", dest='last_hyper', type=int, default=0)
     config = parser.parse_args()
     main(config)
 
