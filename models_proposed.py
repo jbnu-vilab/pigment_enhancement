@@ -482,8 +482,11 @@ class DCPNet24(nn.Module):
                 img_f = torch.clamp(img_f, 0, 1)
 
             for i in range(0,self.transform_num):
-                offset_param = self.cls_output[:,cur_idx:cur_idx + self.control_point_num * self.feature_num]
-                cur_idx += self.control_point_num * self.feature_num
+                plus_idx = self.control_point_num * self.feature_num
+                if self.xoffset == 1:
+                    plus_idx += ((self.control_point_num - 2) * self.feature_num)
+                offset_param = self.cls_output[:,cur_idx:cur_idx + plus_idx]
+                cur_idx += plus_idx
                 img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control)
 
                 if i < self.transform_num - 1:
