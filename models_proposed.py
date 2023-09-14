@@ -484,7 +484,10 @@ class DCPNet24(nn.Module):
             #transform_params = transform_params.permute(1,2,0,3,4)
             #org_img = org_img.permute(1,0,2,3)
             org_img = org_img.reshape(1, N * 3, H, W)
-            img_f = F.conv2d(input=org_img, weight=transform_params, groups=N)
+            if self.hyper_conv == 1:
+                img_f = F.conv2d(input=org_img, weight=transform_params, groups=N)
+            elif self.hyper_conv == 3:
+                img_f = F.conv2d(input=org_img, weight=transform_params, groups=N, padding=1)
 
             img_f = img_f.reshape(N,self.feature_num,H,W)
             if self.act_mode == 'tanh':
