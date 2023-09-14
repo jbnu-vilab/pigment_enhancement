@@ -385,6 +385,7 @@ class DCPNet24(nn.Module):
         self.last_hyper = config.last_hyper
 
         self.residual = config.residual
+        self.hyper_conv = config.hyper_conv
 
         self.leaky_relu = nn.LeakyReLU(0.1)
         param_num = (self.control_point_num * self.feature_num) * self.transform_num
@@ -397,7 +398,10 @@ class DCPNet24(nn.Module):
             self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
-            param_num += (3 * self.feature_num)
+            if self.hyper_conv == 1:
+                param_num += (3 * self.feature_num)
+            elif self.hyper_conv == 3:
+                param_num += (3 * self.feature_num) * 9
             self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
 
         
@@ -452,13 +456,16 @@ class DCPNet24(nn.Module):
                 img_f_t = img_f_t * 2 - 1
         elif self.hyper == 1:
             N, C, H, W = org_img.shape
-            cur_idx = 3 * self.feature_num
+            if self.hyper_conv == 1:
+                cur_idx = 3 * self.feature_num
+            elif self.hyper_conv == 3:
+                cur_idx = 3 * self.feature_num * 9
             transform_params = self.cls_output[:,:cur_idx]
             
-
-            transform_params = transform_params[:, :self.feature_num * 3]
-
-            transform_params = transform_params.reshape(N * self.feature_num, 3)
+            if self.hyper_conv == 1:
+                transform_params = transform_params.reshape(N * self.feature_num, 3)
+            elif self.hyper_conv == 3:
+                transform_params = transform_params.reshape(N * self.feature_num, 27)
             if self.act_mode == 'sigmoid':
                 transform_params = self.sigmoid(transform_params)
                 epsilon = 1e-10
@@ -470,7 +477,10 @@ class DCPNet24(nn.Module):
                 w_norm = torch.sum(torch.abs(transform_params), dim=1, keepdim=True)
                 transform_params = transform_params / (w_norm + epsilon)
 
-            transform_params = transform_params.reshape(N * self.feature_num, 3, 1, 1)
+            if self.hyper_conv == 1:
+                transform_params = transform_params.reshape(N * self.feature_num, 3, 1, 1)
+            elif self.hyper_conv == 3:
+                transform_params = transform_params.reshape(N * self.feature_num, 3, 3, 3)
             #transform_params = transform_params.permute(1,2,0,3,4)
             #org_img = org_img.permute(1,0,2,3)
             org_img = org_img.reshape(1, N * 3, H, W)

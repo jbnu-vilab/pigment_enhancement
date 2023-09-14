@@ -153,6 +153,8 @@ if __name__ == '__main__':
 
     parser.add_argument("--hyper2", dest='hyper2', type=int, default=1)
     parser.add_argument("--last_hyper", dest='last_hyper', type=int, default=0)
+
+    parser.add_argument("--hyper_conv", dest='hyper_conv', type=int, default=1)
     config = parser.parse_args()
     main(config)
 
