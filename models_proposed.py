@@ -94,6 +94,8 @@ class convBlock2(nn.Module):
             activation = nn.GELU()
         elif act=='leaky':
             activation = nn.LeakyReLU(0.1)
+        elif act=='relu':
+            activation = nn.ReLU()
 
         lists = []
         if extra_conv:
@@ -115,6 +117,36 @@ class convBlock2(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+class resBlock2(nn.Module):
+    def __init__(self, input_feature, output_feature, ksize=3, stride=2, pad=1, extra_conv=False, act='silu'):
+        super(resBlock2, self).__init__()
+        if act=='silu':
+            activation = nn.SiLU(inplace=True)
+        elif act=='gelu':
+            activation = nn.GELU()
+        elif act=='leaky':
+            activation = nn.LeakyReLU(0.1)
+        elif act=='relu':
+            activation = nn.ReLU()
+
+        lists = []
+
+        lists += [
+            nn.BatchNorm2d(output_feature),
+            activation,
+            nn.Conv2d(input_feature, output_feature, kernel_size=(ksize, ksize), stride=(stride, stride), padding=(pad, pad)),
+
+            nn.BatchNorm2d(output_feature),
+            activation,
+            nn.Conv2d(input_feature, output_feature, kernel_size=(ksize, ksize), stride=(stride, stride),
+                      padding=(pad, pad)),
+
+        ]
+
+        self.model = nn.Sequential(*lists)
+
+    def forward(self, x):
+        return x + self.model(x)
 
 class colorTransform(nn.Module):
     def __init__(self, control_point=30, use_param=0, trainable_gamma=0, trainable_offset=0, offset_param=0.04, offset_param2=0.04, gamma_param=1.0, config=0):
@@ -404,8 +436,21 @@ class DCPNet24(nn.Module):
                 param_num += (3 * self.feature_num) * 9
             self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
 
-        
-
+        self.mid_conv = config.mid_conv
+        conv_list = []
+        for i in range(0, self.mid_conv):
+            if config.mid_conv_mode == 'res':
+                if config.mid_conv_size == 3:
+                    conv_list.append(resBlock2(self.feature_num, self.feature_num, ksize=3, stride=1, pad=1, extra_conv=False, act='relu'))
+                else:
+                    conv_list.append(resBlock2(self.feature_num, self.feature_num, ksize=1, stride=1, pad=0, extra_conv=False, act='relu'))
+            else:
+                if config.mid_conv_size == 3:
+                    conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=3, stride=1, pad=1, extra_conv=False, act='relu'))
+                else:
+                    conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=1, stride=1, pad=0, extra_conv=False, act='relu'))
+        if self.mid_conv > 0:
+            self.mid_conv_module = nn.Sequential(*conv_list)
         if config.xoffset == 0:
             self.colorTransform = colorTransform3(self.control_point_num, config.offset_param, config)
         else:
@@ -513,6 +558,8 @@ class DCPNet24(nn.Module):
                     if self.act_mode == 'tanh':
                         img_f_t = img_f_t * 2.0 - 1
 
+        if self.mid_conv > 0:
+            img_f_t = self.mid_conv_module(img_f_t)
         if self.last_hyper == 1:
             hyper_params = self.cls_output[:,cur_idx:]
             hyper_params = hyper_params.reshape(N * 3, self.feature_num, 1, 1)

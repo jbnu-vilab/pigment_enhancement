@@ -212,9 +212,9 @@ class DataLoader(object):
             elif dataset == 'ppr10kc':
                 retoucher = 'C'
             if self.istrain == 1:
-                self.data = ImageDataset_paper(root=path, mode="train", use_mask=False, retoucher=retoucher)
+                self.data = ImageDataset_paper(root=path, mode="train", use_mask=False, retoucher=retoucher, loader_size=config.loader_size)
             else:
-                self.data = ImageDataset_paper(root=path, mode="test", use_mask=False, retoucher=retoucher)
+                self.data = ImageDataset_paper(root=path, mode="test", use_mask=False, retoucher=retoucher, loader_size=config.loader_size)
             #self.data = folders.ppr10kFolder(root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter, dataset=dataset)
         elif dataset == 'adobe5k2':
             if self.istrain == 1:
