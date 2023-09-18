@@ -12,7 +12,7 @@ import torchvision.transforms.functional as TF
 import torchvision_x_functional as TF_x
 
 class ImageDataset_paper(Dataset):
-    def __init__(self, root, mode="train", use_mask=False, retoucher = 'A', loader_size=448):
+    def __init__(self, root, mode="train", use_mask=False, retoucher = 'A', loader_size=448, div=4):
         self.mode = mode
         self.root = root
         self.use_mask = use_mask
@@ -26,6 +26,7 @@ class ImageDataset_paper(Dataset):
         self.test_input_files = sorted(glob.glob(os.path.join(root, "test/input" + "/*.tif")))
         self.test_target_files = sorted(glob.glob(os.path.join(root, "test/target_" + self.retoucher + "/*.tif")))
         #self.test_mask_files = sorted(glob.glob(os.path.join(root, "test/masks" + "/*.png")))
+        self.div = div
 
     def __getitem__(self, index):
 
@@ -83,9 +84,9 @@ class ImageDataset_paper(Dataset):
         img_exptC = TF.to_tensor(img_exptC)
         if self.mode == "test":
             _, h, w = img_input.shape
-            if (h % 4) or (w % 4):
-                nH = (h // 4) * 4
-                nW = (w // 4) * 4
+            if (h % self.div) or (w % self.div):
+                nH = (h // self.div) * self.div
+                nW = (w // self.div) * self.div
                 img_input = TF.resize(img_input, (nH, nW))
                 img_exptC = TF.resize(img_exptC, (nH, nW))
         color_map = torch.zeros(3, 256)

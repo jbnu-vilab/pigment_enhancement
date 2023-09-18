@@ -63,6 +63,8 @@ class convBlock(nn.Module):
             activation = nn.GELU()
         elif act=='leaky':
             activation = nn.LeakyReLU(0.1)
+        elif act=='relu':
+            activation = nn.ReLU()
 
         lists = []
 
@@ -419,6 +421,8 @@ class DCPNet24(nn.Module):
         self.residual = config.residual
         self.hyper_conv = config.hyper_conv
 
+        self.local_residual = config.local_residual
+
         self.leaky_relu = nn.LeakyReLU(0.1)
         param_num = (self.control_point_num * self.feature_num) * self.transform_num
 
@@ -459,8 +463,65 @@ class DCPNet24(nn.Module):
             self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
         elif config.conv_mode == 1:
             self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
-        
 
+        self.act = 'relu'
+        self.div = config.div
+        if self.local_residual == 1:
+            if self.div == 4:
+                self.res1 = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+                self.res2 = convBlock2(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)  # s2
+                self.res3 = convBlock2(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)  # s3
+
+                self.res4 = convBlock2(input_feature=64, output_feature=64, ksize=3, stride=1, pad=1, act=self.act)  # s3
+                # upsample and concat
+                self.res5 = convBlock2(input_feature=96, output_feature=32, ksize=3, stride=1, pad=1, act=self.act)  # s2
+                # upsample and concat
+                self.res6 = convBlock2(input_feature=48, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+                self.res7 = convBlock(input_feature=16, output_feature=3, ksize=3, stride=1, pad=1, extra_conv=True, act=self.act)
+            elif self.div == 16:
+                self.res1 = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+                self.res2 = convBlock2(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)  # s2
+                self.res3 = convBlock2(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)  # s3
+
+                self.res4 = convBlock2(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act)  # s4
+
+                self.res5 = convBlock2(input_feature=128, output_feature=256, ksize=3, stride=2, pad=1, act=self.act)  # s5
+
+                self.res6 = convBlock2(input_feature=256, output_feature=256, ksize=3, stride=1, pad=1, act=self.act)  # s5
+
+                # upsample and concat
+                self.res7 = convBlock2(input_feature=384, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)  # s4
+
+                # upsample and concat
+                self.res8 = convBlock2(input_feature=192, output_feature=64, ksize=3, stride=1, pad=1, act=self.act)  # s3
+
+                 # upsample and concat
+                self.res9 = convBlock2(input_feature=96, output_feature=32, ksize=3, stride=1, pad=1, act=self.act)  # s2
+
+                # upsample and concat
+                self.res10 = convBlock2(input_feature=48, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+
+                self.res11 = nn.Conv2d(16, 3, kernel_size=3, padding=1)
+
+            elif self.div == 8:
+                self.res1 = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+                self.res2 = convBlock2(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)  # s2
+                self.res3 = convBlock2(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)  # s3
+
+                self.res4 = convBlock2(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act)  # s4
+
+                self.res5 = convBlock2(input_feature=128, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)  # s4
+
+                # upsample and concat
+                self.res6 = convBlock2(input_feature=192, output_feature=64, ksize=3, stride=1, pad=1, act=self.act)  # s3
+
+                 # upsample and concat
+                self.res7 = convBlock2(input_feature=96, output_feature=32, ksize=3, stride=1, pad=1, act=self.act)  # s2
+
+                # upsample and concat
+                self.res8 = convBlock2(input_feature=48, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+
+                self.res9 = nn.Conv2d(16, 3, kernel_size=3, padding=1)
 
         self.sigmoid = nn.Sigmoid()
         self.tanh = nn.Tanh()
@@ -576,6 +637,40 @@ class DCPNet24(nn.Module):
         if self.residual == 1:
             org_img = org_img.reshape(N, 3, H, W)
             out_img = out_img + org_img
+
+        if self.local_residual == 1:
+            if self.div == 4:
+                y1 = self.res1(out_img)
+                y2 = self.res2(y1)
+                y3 = self.res3(y2)
+                y3 = self.res4(y3)
+                y2 = self.res5(torch.cat((y2, F.upsample_bilinear(y3, scale_factor=2)), dim=1))
+                y1 = self.res6(torch.cat((y1, F.upsample_bilinear(y2, scale_factor=2)), dim=1))
+                y1 = self.res7(y1)
+            elif self.div == 16:
+                y1 = self.res1(out_img)
+                y2 = self.res2(y1)
+                y3 = self.res3(y2)
+                y4 = self.res4(y3)
+                y5 = self.res5(y4)
+                y5 = self.res6(y5)
+                y4 = self.res7(torch.cat((y4, F.upsample_bilinear(y5, scale_factor=2)), dim=1))
+                y3 = self.res8(torch.cat((y3, F.upsample_bilinear(y4, scale_factor=2)), dim=1))
+                y2 = self.res9(torch.cat((y2, F.upsample_bilinear(y3, scale_factor=2)), dim=1))
+                y1 = self.res10(torch.cat((y1, F.upsample_bilinear(y2, scale_factor=2)), dim=1))
+                y1 = self.res11(y1)
+            elif self.div == 8:
+                y1 = self.res1(out_img)
+                y2 = self.res2(y1)
+                y3 = self.res3(y2)
+                y4 = self.res4(y3)
+                y4 = self.res5(y4)
+                y3 = self.res6(torch.cat((y3, F.upsample_bilinear(y4, scale_factor=2)), dim=1))
+                y2 = self.res7(torch.cat((y2, F.upsample_bilinear(y3, scale_factor=2)), dim=1))
+                y1 = self.res8(torch.cat((y1, F.upsample_bilinear(y2, scale_factor=2)), dim=1))
+                y1 = self.res9(y1)
+
+            out_img = y1 + out_img
         return out_img
 
 
@@ -904,6 +999,8 @@ class DCPNet27(nn.Module):
 
         self.num_weight = config.num_weight
 
+        self.softmax = config.softmax
+
         param_num = self.control_point_num * self.feature_num * config.num_weight
         if self.xoffset == 1:
             param_num += (self.control_point_num - 2) * self.feature_num
@@ -982,11 +1079,16 @@ class DCPNet27(nn.Module):
             y2 = self.res9(torch.cat((y2, F.upsample_bilinear(y3, scale_factor=2)), dim=1))
             y1 = self.res10(torch.cat((y1, F.upsample_bilinear(y2, scale_factor=2)), dim=1))
             y1 = self.res11(y1)
+
             m = T.Resize((H, W))
             y = m(y1)
-            y = self.sigmoid(y)
-            y_sum = torch.sum(y, dim=1, keepdim=True)
-            y = y / y_sum
+            if self.softmax == 0:
+                y = self.sigmoid(y)
+                y_sum = torch.sum(y, dim=1, keepdim=True)
+                y = y / y_sum
+            else:
+                m = nn.Softmax(dim=1)
+                y = m(y)
             
 
         self.cls_output = self.classifier(org_img)

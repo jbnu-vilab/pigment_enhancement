@@ -162,6 +162,13 @@ if __name__ == '__main__':
     parser.add_argument("--mid_conv_mode", dest='mid_conv_mode', type=str, default='conv')
 
     parser.add_argument("--loader_size", dest='loader_size', type=int, default=448)
+
+    parser.add_argument("--softmax", dest='softmax', type=int, default=0)
+
+    parser.add_argument("--local_residual", dest='local_residual', type=int, default=0)
+
+    parser.add_argument("--div", dest='div', type=int, default=4)
+
     config = parser.parse_args()
     main(config)
 
