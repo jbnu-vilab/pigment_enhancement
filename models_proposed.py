@@ -563,6 +563,9 @@ class DCPNet24(nn.Module):
         if self.last_hyper == 1:
             hyper_params = self.cls_output[:,cur_idx:]
             hyper_params = hyper_params.reshape(N * 3, self.feature_num, 1, 1)
+            #hyper_params = self.tanh(hyper_params)
+            hyper_params /= self.feature_num
+
             img_f_t = img_f_t.reshape(1, N * self.feature_num, H, W)
             out_img = F.conv2d(input=img_f_t, weight=hyper_params, groups=N)
             out_img = out_img.reshape(N,3,H,W)
