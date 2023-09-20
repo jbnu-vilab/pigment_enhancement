@@ -3,7 +3,7 @@ import torchvision
 import folders
 import random
 import torchvision.transforms.functional as F
-from ppr10k import ImageDataset_paper, ImageDataset_paper2
+from ppr10k import ImageDataset_paper, ImageDataset_paper2, ImageDataset_paper3
 # 1. random crop with random..size
 class RandomCropWithRandomSize(object):
     def __init__(self, range1, range2):
@@ -200,8 +200,10 @@ class DataLoader(object):
             self.data = folders.UIEBFolder(
                 root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter)
         elif dataset == 'hdr':
-            self.data = folders.hdrFolder(
-                root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter)
+            if self.istrain == 1:
+                self.data = ImageDataset_paper3(root=path, mode="train", use_mask=False, loader_size=config.loader_size, div=config.div)
+            else:
+                self.data = ImageDataset_paper3(root=path, mode="test", use_mask=False, loader_size=config.loader_size, div=config.div)
             
         
         elif dataset == 'ppr10ka' or dataset == 'ppr10kb' or dataset == 'ppr10kc':

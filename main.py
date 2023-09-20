@@ -169,6 +169,11 @@ if __name__ == '__main__':
 
     parser.add_argument("--div", dest='div', type=int, default=4)
 
+    parser.add_argument("--bias", dest='bias', type=int, default=0)
+    parser.add_argument("--pixelwise_multi", dest='pixelwise_multi', type=int, default=0)
+
+    parser.add_argument("--quad", dest='quad', type=int, default=0)
+
     config = parser.parse_args()
     main(config)
 
