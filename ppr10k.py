@@ -211,7 +211,7 @@ class ImageDataset_paper3(Dataset):
         #self.train_mask_files = sorted(glob.glob(os.path.join(root, "train/masks" + "/*.png")))
 
         self.test_input_files = sorted(glob.glob(os.path.join(root, "test/input" + "/*.png")))
-        self.test_target_files = sorted(glob.glob(os.path.join(root, "test/input" + "/*.png")))
+        self.test_target_files = sorted(glob.glob(os.path.join(root, "test/target" + "/*.png")))
         #self.test_mask_files = sorted(glob.glob(os.path.join(root, "test/masks" + "/*.png")))
         self.div = div
 
