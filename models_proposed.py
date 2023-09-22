@@ -1495,8 +1495,10 @@ class colorTransform3(nn.Module):
         self.feature_num = config.feature_num
 
         self.epsilon = 1e-8
-
-        self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
+        
+        self.offset_param = offset_param
+        if self.offset_param != -1:
+            self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
 
 
 
@@ -1505,7 +1507,10 @@ class colorTransform3(nn.Module):
         N, C, H, W = org_img.shape
         #out_img = torch.zeros_like(org_img)
         color_map_control_x = color_map_control.clone()
-        params = params.reshape(N, self.feature_num, self.control_point) * self.offset_param
+        if self.offset_param != -1:
+            params = params.reshape(N, self.feature_num, self.control_point) * self.offset_param
+        else:
+            params = params.reshape(N, self.feature_num, self.control_point)
         color_map_control_y = color_map_control_x + params
 
         color_map_control_y = torch.cat((color_map_control_y, color_map_control_y[:, :, self.control_point-1:self.control_point]), dim=2)
