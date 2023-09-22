@@ -160,8 +160,8 @@ class solver_IE(object):
             self.model = models_proposed.DCPNet27(config).cuda()
         elif config.m == 28:
             self.model = models_proposed.DCPNet28(config).cuda()
-
-       
+        elif config.m == 29:
+            self.model = models_proposed.DCPNet29_cor(config).cuda()
 
         self.PSNR = PSNR().cuda()
         self.PSNR.training = False
@@ -174,14 +174,14 @@ class solver_IE(object):
 
         batch_step_num = math.ceil(train_loader.data.__len__() / config.batch_size)
 
-        backbone_params = list(map(id, self.model.classifier.parameters()))
-        self.hypernet_params = filter(lambda p: id(p) not in backbone_params, self.model.parameters())
-        self.paras = [{'params': self.hypernet_params, 'lr': self.lr * self.lrratio},
-                      {'params': self.model.classifier.parameters(), 'lr': self.lr}
-                      ]
-        self.optimizer = torch.optim.Adam(self.paras, weight_decay=self.weight_decay)
+        #backbone_params = list(map(id, self.model.classifier.parameters()))
+        #self.hypernet_params = filter(lambda p: id(p) not in backbone_params, self.model.parameters())
+        #self.paras = [{'params': self.hypernet_params, 'lr': self.lr * self.lrratio},
+        #              {'params': self.model.classifier.parameters(), 'lr': self.lr}
+        #              ]
+        #self.optimizer = torch.optim.Adam(self.paras, weight_decay=self.weight_decay)
 
-        #self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
 
         if config.scheduler == 'cos_warmup':
             self.scheduler = WarmupCosineSchedule(self.optimizer, warmup_steps=math.ceil(batch_step_num * config.warmup_step), t_total=batch_step_num * config.epochs, cycles=0.5)
@@ -270,7 +270,6 @@ class solver_IE(object):
                     loss_weight = [0, 0, 0.1]
                 elif self.weight_mode == 6:
                     loss_weight = [0.02, 0.05, 0.1]
-
 
 
                 pred = self.model(img, index, color_position)
@@ -407,10 +406,8 @@ class solver_IE(object):
                 self.f.write('Test {}/{}\n'.format(n, data.__len__()))
 
 
-
-
             pred = self.model(img, index, color_position)
-
+                
             if self.vgg_loss == 0:
                 loss = self.l1_loss(pred, label)
             else:

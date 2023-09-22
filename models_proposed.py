@@ -693,7 +693,7 @@ class DCPNet24(nn.Module):
                 epsilon = 1e-10
                 w_norm = torch.sum(torch.abs(transform_params), dim=1, keepdim=True)
                 transform_params = transform_params / (w_norm + epsilon)
-            elif self.act_mode == 'minmax' or self.act_mode == 'trunc':
+            elif self.act_mode == 'minmax' or self.act_mode == 'trunc' or self.act_mode == 'minmax2':
                 transform_params = transform_params
 
             if self.hyper_conv == 1:
@@ -744,7 +744,7 @@ class DCPNet24(nn.Module):
             elif self.pixelwise_multi == 3:
                 y = self.tanh(y)
                 img_f = img_f + y * img_f * ( 1.0 - img_f)
-            if self.act_mode == 'minmax':
+            if self.act_mode == 'minmax' or self.act_mode == 'minmax2':
                     # normalize
                 min_val, _ = img_f.min(dim=2, keepdim=True)
                 min_val, _ = min_val.min(dim=3, keepdim=True)
@@ -766,7 +766,8 @@ class DCPNet24(nn.Module):
                 offset_param = self.cls_output[:,cur_idx:cur_idx + plus_idx]
                 cur_idx += plus_idx
                 img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control)
-
+                if self.act_mode == 'minmax2':
+                    img_f_t = min_val + (max_val - min_val) * img_f_t
                 if i < self.transform_num - 1:
                     # normalize
                     min_val, _ = img_f_t.min(dim=2, keepdim=True)
@@ -1484,6 +1485,395 @@ class DCPNet28(nn.Module):
 
         return out_img
 
+class DCPNet29(nn.Module):
+    def __init__(self, config, scale):
+        super(DCPNet29, self).__init__()
+
+        self.control_point_num = config.control_point + 2
+        self.feature_num = config.feature_num
+        self.scale = scale
+        
+        self.hyper = config.hyper
+        self.xoffset = config.xoffset
+        self.transform_num = config.transform_num
+        self.conv_num = config.conv_num
+        self.last_hyper = config.last_hyper
+
+        self.residual = config.residual
+        self.hyper_conv = config.hyper_conv
+
+        self.local_residual = config.local_residual
+        self.bias = config.bias
+        self.quad = config.quad
+
+        self.leaky_relu = nn.LeakyReLU(0.1)
+        param_num = (self.control_point_num * self.feature_num) * self.transform_num
+        if self.bias == 1:
+            param_num += (self.feature_num * self.transform_num)
+        if self.quad == 1 or self.quad == 4 or self.quad == 5:
+            param_num += (self.feature_num * self.transform_num)
+        if self.quad == 2 or self.quad == 3 or self.quad == 6 or self.quad == 7:
+            param_num += (self.feature_num * self.transform_num) * 2
+        if self.last_hyper == 1:
+            param_num += (3 * self.feature_num)
+        if self.xoffset == 1:
+            param_num += ((self.control_point_num - 2) * self.feature_num) * self.transform_num
+        if self.hyper == 0:    
+            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
+            self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
+        elif self.hyper == 1:
+            if self.hyper_conv == 1:
+                param_num += (3 * self.feature_num)
+            elif self.hyper_conv == 3:
+                param_num += (3 * self.feature_num) * 9
+            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
+
+        self.mid_conv = config.mid_conv
+        conv_list = []
+        for i in range(0, self.mid_conv):
+            if config.mid_conv_mode == 'res':
+                if config.mid_conv_size == 3:
+                    conv_list.append(resBlock2(self.feature_num, self.feature_num, ksize=3, stride=1, pad=1, extra_conv=False, act='relu'))
+                else:
+                    conv_list.append(resBlock2(self.feature_num, self.feature_num, ksize=1, stride=1, pad=0, extra_conv=False, act='relu'))
+            elif config.mid_conv_mode == 'res2':
+                    conv_list.append(resBlock3(self.feature_num, self.feature_num, ksize=3, stride=1, pad=1, extra_conv=False, act='relu'))
+            else:
+                if config.mid_conv_size == 3:
+                    conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=3, stride=1, pad=1, extra_conv=False, act='relu'))
+                else:
+                    conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=1, stride=1, pad=0, extra_conv=False, act='relu'))
+        if self.mid_conv > 0:
+            self.mid_conv_module = nn.Sequential(*conv_list)
+        if config.xoffset == 0:
+            self.colorTransform = colorTransform3(self.control_point_num, config.offset_param, config)
+        elif config.xoffset == -1:
+            self.colorTransform = colorTransform4(self.control_point_num, config.offset_param, config)
+        else:
+            self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config)
+        if config.conv_mode == 3:
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+        elif config.conv_mode == 1:
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+
+        self.act = 'relu'
+        self.pixelwise_multi = config.pixelwise_multi
+        if self.pixelwise_multi == 1 or self.pixelwise_multi == 3 or self.pixelwise_multi == 4 or self.pixelwise_multi == 6:
+            self.resize = T.Resize((config.local_size // (2**scale), config.local_size // (2**scale)))
+            self.res1 = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+            self.res2 = convBlock2(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)  # s2
+            self.res3 = convBlock2(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)  # s3
+
+            self.res4 = convBlock2(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act)  # s4
+
+            self.res5 = convBlock2(input_feature=128, output_feature=256, ksize=3, stride=2, pad=1, act=self.act)  # s5
+
+            self.res6 = convBlock2(input_feature=256, output_feature=256, ksize=3, stride=1, pad=1, act=self.act)  # s5
+
+            # upsample and concat
+            self.res7 = convBlock2(input_feature=384, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)  # s4
+
+            # upsample and concat
+            self.res8 = convBlock2(input_feature=192, output_feature=64, ksize=3, stride=1, pad=1, act=self.act)  # s3
+
+             # upsample and concat
+            self.res9 = convBlock2(input_feature=96, output_feature=32, ksize=3, stride=1, pad=1, act=self.act)  # s2
+
+            # upsample and concat
+            self.res10 = convBlock2(input_feature=48, output_feature=self.feature_num, ksize=3, stride=1, pad=1, act=self.act)  # s1
+
+            self.res11 = nn.Conv2d(self.feature_num, self.feature_num, kernel_size=3, padding=1)
+        
+        if self.pixelwise_multi == 2 or self.pixelwise_multi == 5:
+            self.resize = T.Resize((config.local_size // (2**scale), config.local_size // (2**scale)))
+            self.res1 = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+            self.res2 = convBlock2(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)  # s2
+            self.res3 = convBlock2(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)  # s3
+
+            self.res4 = convBlock2(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act)  # s4
+
+            self.res5 = convBlock2(input_feature=128, output_feature=256, ksize=3, stride=2, pad=1, act=self.act)  # s5
+
+            self.res6 = convBlock2(input_feature=256, output_feature=256, ksize=3, stride=1, pad=1, act=self.act)  # s5
+
+            # upsample and concat
+            self.res7 = convBlock2(input_feature=384, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)  # s4
+
+            # upsample and concat
+            self.res8 = convBlock2(input_feature=192, output_feature=64, ksize=3, stride=1, pad=1, act=self.act)  # s3
+
+             # upsample and concat
+            self.res9 = convBlock2(input_feature=96, output_feature=32, ksize=3, stride=1, pad=1, act=self.act)  # s2
+
+            # upsample and concat
+            self.res10 = convBlock2(input_feature=48, output_feature=self.feature_num * 2, ksize=3, stride=1, pad=1, act=self.act)  # s1
+
+            self.res11 = nn.Conv2d(self.feature_num * 2, self.feature_num * 2, kernel_size=3, padding=1)
+
+        self.div = config.div
+        if self.local_residual == 1:
+            if self.div == 4:
+                self.res1 = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+                self.res2 = convBlock2(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)  # s2
+                self.res3 = convBlock2(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)  # s3
+
+                self.res4 = convBlock2(input_feature=64, output_feature=64, ksize=3, stride=1, pad=1, act=self.act)  # s3
+                # upsample and concat
+                self.res5 = convBlock2(input_feature=96, output_feature=32, ksize=3, stride=1, pad=1, act=self.act)  # s2
+                # upsample and concat
+                self.res6 = convBlock2(input_feature=48, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+                self.res7 = convBlock(input_feature=16, output_feature=3, ksize=3, stride=1, pad=1, extra_conv=True, act=self.act)
+            elif self.div == 16:
+                self.res1 = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+                self.res2 = convBlock2(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)  # s2
+                self.res3 = convBlock2(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)  # s3
+
+                self.res4 = convBlock2(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act)  # s4
+
+                self.res5 = convBlock2(input_feature=128, output_feature=256, ksize=3, stride=2, pad=1, act=self.act)  # s5
+
+                self.res6 = convBlock2(input_feature=256, output_feature=256, ksize=3, stride=1, pad=1, act=self.act)  # s5
+
+                # upsample and concat
+                self.res7 = convBlock2(input_feature=384, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)  # s4
+
+                # upsample and concat
+                self.res8 = convBlock2(input_feature=192, output_feature=64, ksize=3, stride=1, pad=1, act=self.act)  # s3
+
+                 # upsample and concat
+                self.res9 = convBlock2(input_feature=96, output_feature=32, ksize=3, stride=1, pad=1, act=self.act)  # s2
+
+                # upsample and concat
+                self.res10 = convBlock2(input_feature=48, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+
+                self.res11 = nn.Conv2d(16, 3, kernel_size=3, padding=1)
+
+            elif self.div == 8:
+                self.res1 = convBlock2(input_feature=3, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+                self.res2 = convBlock2(input_feature=16, output_feature=32, ksize=3, stride=2, pad=1, act=self.act)  # s2
+                self.res3 = convBlock2(input_feature=32, output_feature=64, ksize=3, stride=2, pad=1, act=self.act)  # s3
+
+                self.res4 = convBlock2(input_feature=64, output_feature=128, ksize=3, stride=2, pad=1, act=self.act)  # s4
+
+                self.res5 = convBlock2(input_feature=128, output_feature=128, ksize=3, stride=1, pad=1, act=self.act)  # s4
+
+                # upsample and concat
+                self.res6 = convBlock2(input_feature=192, output_feature=64, ksize=3, stride=1, pad=1, act=self.act)  # s3
+
+                 # upsample and concat
+                self.res7 = convBlock2(input_feature=96, output_feature=32, ksize=3, stride=1, pad=1, act=self.act)  # s2
+
+                # upsample and concat
+                self.res8 = convBlock2(input_feature=48, output_feature=16, ksize=3, stride=1, pad=1, act=self.act)  # s1
+
+                self.res9 = nn.Conv2d(16, 3, kernel_size=3, padding=1)
+
+        self.sigmoid = nn.Sigmoid()
+        self.tanh = nn.Tanh()
+        self.relu = nn.ReLU()
+        self.act_mode = config.act_mode
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+
+    def forward(self, org_img, index_image, color_map_control):
+        N, C, H, W = org_img.shape
+        m = T.Resize((H // (2**self.scale), W // (2**self.scale)))
+        org_img = m(org_img)
+        N, C, H, W = org_img.shape
+        self.cls_output = self.classifier(org_img)
+        if self.pixelwise_multi >= 1:
+            y = self.resize(org_img)
+            y1 = self.res1(y)
+            y2 = self.res2(y1)
+            y3 = self.res3(y2)
+            y4 = self.res4(y3)
+            y5 = self.res5(y4)
+            y5 = self.res6(y5)
+            y4 = self.res7(torch.cat((y4, F.upsample_bilinear(y5, scale_factor=2)), dim=1))
+            y3 = self.res8(torch.cat((y3, F.upsample_bilinear(y4, scale_factor=2)), dim=1))
+            y2 = self.res9(torch.cat((y2, F.upsample_bilinear(y3, scale_factor=2)), dim=1))
+            y1 = self.res10(torch.cat((y1, F.upsample_bilinear(y2, scale_factor=2)), dim=1))
+            y1 = self.res11(y1)
+            m = T.Resize((H, W))
+            y = m(y1)
+        if self.hyper == 0:
+            if self.act_mode == 'sigmoid':
+                norm_params = self.sigmoid(self.params)
+                epsilon = 1e-10
+                w_sum = torch.sum(torch.abs(norm_params), dim=1, keepdim=True)
+                norm_params = norm_params / (w_sum + epsilon)
+            elif self.act_mode == 'tanh':
+                norm_params = self.tanh(self.params)
+                epsilon = 1e-10
+                w_norm = torch.norm(norm_params, dim=1, keepdim=True)
+                norm_params = norm_params / (w_norm + epsilon)
+
+            # 64 x 3 x 1 x 1
+            img_f = F.conv2d(input=org_img, weight=norm_params)
+            if self.act_mode == 'tanh':
+                img_f = (img_f + 1) / 2
+            img_f_t = self.colorTransform(img_f, self.cls_output, index_image, color_map_control)
+            if self.act_mode == 'tanh':
+                img_f_t = img_f_t * 2 - 1
+        elif self.hyper == 1:
+            N, C, H, W = org_img.shape
+            if self.hyper_conv == 1:
+                cur_idx = 3 * self.feature_num
+            elif self.hyper_conv == 3:
+                cur_idx = 3 * self.feature_num * 9
+            transform_params = self.cls_output[:,:cur_idx]
+            if self.bias == 1:
+                bias_params = self.cls_output[:,cur_idx:cur_idx + self.feature_num]
+                cur_idx += self.feature_num
+            if self.hyper_conv == 1:
+                transform_params = transform_params.reshape(N * self.feature_num, 3)
+            elif self.hyper_conv == 3:
+                transform_params = transform_params.reshape(N * self.feature_num, 27)
+            if self.act_mode == 'sigmoid':
+                transform_params = self.sigmoid(transform_params)
+                epsilon = 1e-10
+                t_sum = torch.sum(transform_params, dim=1, keepdim=True)
+                transform_params = transform_params / (t_sum + epsilon)
+            elif self.act_mode == 'tanh':
+                transform_params = self.tanh(transform_params)
+                epsilon = 1e-10
+                w_norm = torch.sum(torch.abs(transform_params), dim=1, keepdim=True)
+                transform_params = transform_params / (w_norm + epsilon)
+            elif self.act_mode == 'minmax' or self.act_mode == 'trunc' or self.act_mode == 'minmax2':
+                transform_params = transform_params
+
+            if self.hyper_conv == 1:
+                transform_params = transform_params.reshape(N * self.feature_num, 3, 1, 1)
+            elif self.hyper_conv == 3:
+                transform_params = transform_params.reshape(N * self.feature_num, 3, 3, 3)
+            #transform_params = transform_params.permute(1,2,0,3,4)
+            #org_img = org_img.permute(1,0,2,3)
+            org_img = org_img.reshape(1, N * 3, H, W)
+            if self.bias == 1:
+                bias_params = bias_params.reshape(N * self.feature_num)
+                if self.hyper_conv == 1:
+                    img_f = F.conv2d(input=org_img, weight=transform_params, bias=bias_params, groups=N)
+                elif self.hyper_conv == 3:
+                    img_f = F.conv2d(input=org_img, weight=transform_params, bias=bias_params, groups=N, padding=1)
+            else:
+                if self.hyper_conv == 1:
+                    img_f = F.conv2d(input=org_img, weight=transform_params, groups=N)
+                elif self.hyper_conv == 3:
+                    img_f = F.conv2d(input=org_img, weight=transform_params, groups=N, padding=1)
+
+            img_f = img_f.reshape(N,self.feature_num,H,W)
+
+            if self.quad == 1:
+                quad_params = self.tanh(self.cls_output[:,cur_idx:cur_idx + self.feature_num])
+                cur_idx += self.feature_num
+
+                quad_params = quad_params.reshape(N, self.feature_num, 1, 1)
+                img_f = img_f + quad_params * img_f * (1.0 - img_f)
+            
+            elif self.quad == 6 or self.quad == 7:
+                gamma_params = self.cls_output[:,cur_idx:cur_idx + self.feature_num]
+                cur_idx += self.feature_num
+                beta_params = self.cls_output[:,cur_idx:cur_idx + self.feature_num]
+                cur_idx += self.feature_num
+
+                gamma_params = gamma_params.reshape(N, self.feature_num, 1, 1)
+                beta_params = beta_params.reshape(N, self.feature_num, 1, 1)
+                if self.quad == 6:
+                    img_f = img_f * gamma_params + beta_params
+                elif self.quad == 7:
+                    img_f = img_f * gamma_params
+
+            if self.pixelwise_multi == 1:
+                img_f = img_f * y
+            elif self.pixelwise_multi == 2:
+                img_f = img_f * y[:,:self.feature_num,:,:] + y[:,self.feature_num:,:,:]
+            elif self.pixelwise_multi == 3:
+                y = self.tanh(y)
+                img_f = img_f + y * img_f * ( 1.0 - img_f)
+            if self.act_mode == 'minmax' or self.act_mode == 'minmax2':
+                    # normalize
+                min_val, _ = img_f.min(dim=2, keepdim=True)
+                min_val, _ = min_val.min(dim=3, keepdim=True)
+
+                max_val, _ = img_f.max(dim=2, keepdim=True)
+                max_val, _ = max_val.max(dim=3, keepdim=True)
+                img_f = (img_f - min_val) / (max_val - min_val)
+            elif self.act_mode == 'trunc':
+                img_f = torch.clamp(img_f, 0, 1)
+
+            if self.act_mode == 'tanh':
+                img_f = (img_f + 1.0) / 2
+                img_f = torch.clamp(img_f, 0, 1)
+
+            for i in range(0,self.transform_num):
+                plus_idx = self.control_point_num * self.feature_num
+                if self.xoffset == 1:
+                    plus_idx += ((self.control_point_num - 2) * self.feature_num)
+                offset_param = self.cls_output[:,cur_idx:cur_idx + plus_idx]
+                cur_idx += plus_idx
+                img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control)
+                if self.act_mode == 'minmax2':
+                    img_f_t = min_val + (max_val - min_val) * img_f_t
+                if i < self.transform_num - 1:
+                    # normalize
+                    min_val, _ = img_f_t.min(dim=2, keepdim=True)
+                    min_val, _ = min_val.min(dim=3, keepdim=True)
+
+                    max_val, _ = img_f_t.max(dim=2, keepdim=True)
+                    max_val, _ = max_val.max(dim=3, keepdim=True)
+                    img_f_t = (img_f_t - min_val) / (max_val - min_val)
+                    if self.act_mode == 'tanh':
+                        img_f_t = img_f_t * 2.0 - 1
+
+        if self.pixelwise_multi == 4:
+            img_f_t = img_f_t * y
+        elif self.pixelwise_multi == 5:
+            img_f_t = img_f_t * y[:,:self.feature_num,:,:] + y[:,self.feature_num:,:,:]
+        elif self.pixelwise_multi == 6:
+            y = self.tanh(y)
+            img_f_t = img_f_t + y * img_f_t * ( 1.0 - img_f_t)
+
+        return img_f_t
+
+class DCPNet29_cor(nn.Module):
+    def __init__(self, config):
+        super(DCPNet29_cor, self).__init__()
+        self.feature_num = config.feature_num
+        self.model1 = DCPNet29(config, 0)
+        self.model2 = DCPNet29(config, 1)
+        self.model3 = DCPNet29(config, 2)
+        self.conv_out = nn.Conv2d(self.feature_num * 3, 3, kernel_size=1, stride=1, padding=0).cuda()
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+
+    def forward(self, org_img, index_image, color_map_control):
+        feat1 = self.model1(org_img,index_image, color_map_control)
+        feat2 = self.model2(org_img,index_image, color_map_control)
+        feat3 = self.model3(org_img,index_image, color_map_control)
+        feat3 = F.upsample_bilinear(feat3, scale_factor=4) 
+        feat2 = F.upsample_bilinear(feat2, scale_factor=2) 
+        
+        feat = torch.cat((feat1,feat2,feat3), dim=1)
+        out_img = self.conv_out(feat)
+        return out_img
+        
+               
 class colorTransform3(nn.Module):
     def __init__(self, control_point=16, offset_param=0.04, config=0):
         super(colorTransform3, self).__init__()
@@ -1552,7 +1942,11 @@ class colorTransform4(nn.Module):
 
         self.epsilon = 1e-8
 
-        self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
+        self.offset_param = offset_param
+        if self.offset_param > 0:
+            self.offset_param_val = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
+        
+        
 
 
 
@@ -1562,7 +1956,12 @@ class colorTransform4(nn.Module):
         #out_img = torch.zeros_like(org_img)
         color_map_control_x = color_map_control.clone()
         params = params.reshape(N, self.feature_num, self.control_point)
-        color_map_control_y = self.sigmoid(params)
+        if self.offset_param == -1:
+            color_map_control_y = params
+        elif self.offset_param == 0:
+            color_map_control_y = self.sigmoid(params)
+        else:
+            color_map_control_y = params * self.offset_param_val
 
         color_map_control_y = torch.cat((color_map_control_y, color_map_control_y[:, :, self.control_point-1:self.control_point]), dim=2)
         color_map_control_x = torch.cat((color_map_control_x, color_map_control_x[:, :, self.control_point-1:self.control_point]), dim=2)
