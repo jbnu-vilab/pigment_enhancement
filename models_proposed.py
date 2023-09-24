@@ -468,14 +468,14 @@ class DCPNet24(nn.Module):
         if self.xoffset == 1:
             param_num += ((self.control_point_num - 2) * self.feature_num) * self.transform_num
         if self.hyper == 0:    
-            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
             if self.hyper_conv == 1:
                 param_num += (3 * self.feature_num)
             elif self.hyper_conv == 3:
                 param_num += (3 * self.feature_num) * 9
-            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
+            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num)
 
         self.mid_conv = config.mid_conv
         conv_list = []
@@ -1847,10 +1847,20 @@ class DCPNet29_cor(nn.Module):
     def __init__(self, config):
         super(DCPNet29_cor, self).__init__()
         self.feature_num = config.feature_num
+        self.upsample_mode = config.upsample_mode
         self.model1 = DCPNet29(config, 0)
         self.model2 = DCPNet29(config, 1)
         self.model3 = DCPNet29(config, 2)
-        self.conv_out = nn.Conv2d(self.feature_num * 3, 3, kernel_size=1, stride=1, padding=0).cuda()
+        if self.upsample_mode == 1:
+            self.conv_out = nn.Conv2d(self.feature_num * 3, 3, kernel_size=1, stride=1, padding=0).cuda()
+        elif self.upsample_mode == 2:
+            self.conv_out1 = nn.Conv2d(self.feature_num * 2, self.feature_num, kernel_size=1, stride=1, padding=0).cuda()
+            self.bn = nn.BatchNorm2d(self.feature_num)
+            self.relu = nn.ReLU()
+            self.conv_out2 = nn.Conv2d(self.feature_num * 2, self.feature_num, kernel_size=1, stride=1, padding=0).cuda()
+            self.bn1 = nn.BatchNorm2d(self.feature_num)
+            self.relu1 = nn.ReLU()
+            self.conv_out3 = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
 
     def initialize_weights(self):
         for m in self.modules():
@@ -1866,11 +1876,24 @@ class DCPNet29_cor(nn.Module):
         feat1 = self.model1(org_img,index_image, color_map_control)
         feat2 = self.model2(org_img,index_image, color_map_control)
         feat3 = self.model3(org_img,index_image, color_map_control)
-        feat3 = F.upsample_bilinear(feat3, scale_factor=4) 
-        feat2 = F.upsample_bilinear(feat2, scale_factor=2) 
-        
-        feat = torch.cat((feat1,feat2,feat3), dim=1)
-        out_img = self.conv_out(feat)
+        if self.upsample_mode == 1:
+            feat3 = F.upsample_bilinear(feat3, scale_factor=4) 
+            feat2 = F.upsample_bilinear(feat2, scale_factor=2) 
+            feat = torch.cat((feat1,feat2,feat3), dim=1)
+            out_img = self.conv_out(feat)
+        elif self.upsample_mode == 2:
+            feat3 = F.upsample_bilinear(feat3, scale_factor=2)
+            feat2 = torch.cat((feat2,feat3), dim=1)
+            feat2 = self.conv_out1(feat2)
+            feat2 = self.bn(feat2)
+            feat2 = self.relu(feat2)
+            feat2 = F.upsample_bilinear(feat2, scale_factor=2)
+            feat1 = torch.cat((feat1,feat2), dim=1)
+            feat1 = self.conv_out2(feat1)
+            feat1 = self.bn1(feat1)
+            feat1 = self.relu1(feat1)
+            out_img = self.conv_out3(feat1)
+            
         return out_img
         
                
@@ -2137,7 +2160,7 @@ class colorTransform_xoffset(nn.Module):
 
 class resnet18_224(nn.Module):
 
-    def __init__(self, out_dim=5, res_num=18, res_size=224, aug_test=False):
+    def __init__(self, out_dim=5, res_num=18, res_size=224, aug_test=False, fc_num=1):
         super(resnet18_224, self).__init__()
 
         self.aug_test = aug_test
@@ -2162,7 +2185,27 @@ class resnet18_224(nn.Module):
         if res_num == 50 or res_num == 101:
             net.fc = nn.Linear(2048, out_dim)
         elif res_num == 18 or res_num == 34:
-            net.fc = nn.Linear(512, out_dim)
+            if fc_num == 1:
+                net.fc = nn.Linear(512, out_dim)
+            elif fc_num == 2:
+                lists = []
+                lists += [nn.Linear(512, 1024),
+                          #nn.BatchNorm2d(1024),
+                          nn.ReLU(),
+                          nn.Linear(1024, out_dim)]
+                net.fc = nn.Sequential(*lists)
+            elif fc_num == 3:    
+                lists = []
+                lists += [nn.Linear(512, 1024),
+                          #nn.BatchNorm2d(1024),
+                          nn.ReLU(),
+                          nn.Linear(1024, 2048),
+                          #nn.BatchNorm2d(2048),
+                          nn.ReLU(),
+                          nn.Linear(2048, out_dim)]
+                net.fc = nn.Sequential(*lists)
+            
+            #multi layer...
         elif res_num == 16 or res_num == 19:
             net.classifier[-1] = nn.Linear(4096, out_dim)
         self.model = net

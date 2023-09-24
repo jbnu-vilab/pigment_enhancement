@@ -173,6 +173,9 @@ if __name__ == '__main__':
     parser.add_argument("--pixelwise_multi", dest='pixelwise_multi', type=int, default=0)
 
     parser.add_argument("--quad", dest='quad', type=int, default=0)
+    parser.add_argument("--fc_num", dest='fc_num', type=int, default=1)
+    
+    parser.add_argument("--upsample_mode", dest='upsample_mode', type=int, default=1)
 
     config = parser.parse_args()
     main(config)
