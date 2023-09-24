@@ -1888,9 +1888,10 @@ class colorTransform3(nn.Module):
         
         self.offset_param = offset_param
         if self.offset_param != -1:
-            self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
-
-
+            if config.trainable_offset == 1:
+                self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
+            else:
+                self.offset_param = offset_param
 
     def forward(self, org_img, params, color_mapping_global_a, color_map_control):
         #out_img = torch.zeros(N,C,H,W).cuda()
