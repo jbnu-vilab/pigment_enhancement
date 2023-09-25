@@ -498,6 +498,8 @@ class DCPNet24(nn.Module):
             self.colorTransform = colorTransform3(self.control_point_num, config.offset_param, config)
         elif config.xoffset == -1:
             self.colorTransform = colorTransform4(self.control_point_num, config.offset_param, config)
+        elif config.xoffset == -2:
+            self.colorTransform = colorTransform5(self.control_point_num, config.offset_param, config)
         else:
             self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config)
         if config.conv_mode == 3:
@@ -905,9 +907,11 @@ class DCPNet25(nn.Module):
             else:
                 self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config)
         if config.conv_mode == 3:
-            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+            #self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1)
         elif config.conv_mode == 1:
-            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+            #self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0)
         
         
         self.act = 'leaky'
@@ -1073,9 +1077,11 @@ class DCPNet26(nn.Module):
         else:
             self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config)
         if config.conv_mode == 3:
-            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+            #self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1)
         elif config.conv_mode == 1:
-            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+            #self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0)
 
         self.sigmoid = nn.Sigmoid()
         self.tanh = nn.Tanh()
@@ -1211,9 +1217,11 @@ class DCPNet27(nn.Module):
             else:
                 self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config)
         if config.conv_mode == 3:
-            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+            #self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1)
         elif config.conv_mode == 1:
-            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+            #self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0)
         
         
         self.act = 'leaky'
@@ -1359,9 +1367,11 @@ class DCPNet28(nn.Module):
         
         self.colorTransform = colorTransform3(self.control_point_num, config.offset_param, config)
         if config.conv_mode == 3:
-            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+            #self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1)
         elif config.conv_mode == 1:
-            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+            #self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0)
         
         
         self.act = 'leaky'
@@ -1552,9 +1562,11 @@ class DCPNet29(nn.Module):
         else:
             self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config)
         if config.conv_mode == 3:
-            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+            #self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1)
         elif config.conv_mode == 1:
-            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+            #self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0)
 
         self.act = 'relu'
         self.pixelwise_multi = config.pixelwise_multi
@@ -1851,16 +1863,26 @@ class DCPNet29_cor(nn.Module):
         self.model1 = DCPNet29(config, 0)
         self.model2 = DCPNet29(config, 1)
         self.model3 = DCPNet29(config, 2)
+        #if self.upsample_mode == 1:
+        #    self.conv_out = nn.Conv2d(self.feature_num * 3, 3, kernel_size=1, stride=1, padding=0).cuda()
+        #elif self.upsample_mode == 2:
+        #    self.conv_out1 = nn.Conv2d(self.feature_num * 2, self.feature_num, kernel_size=1, stride=1, padding=0).cuda()
+        #    self.bn = nn.BatchNorm2d(self.feature_num)
+        #    self.relu = nn.ReLU()
+        #    self.conv_out2 = nn.Conv2d(self.feature_num * 2, self.feature_num, kernel_size=1, stride=1, padding=0).cuda()
+        #    self.bn1 = nn.BatchNorm2d(self.feature_num)
+        #    self.relu1 = nn.ReLU()
+        #    self.conv_out3 = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
         if self.upsample_mode == 1:
-            self.conv_out = nn.Conv2d(self.feature_num * 3, 3, kernel_size=1, stride=1, padding=0).cuda()
+            self.conv_out = nn.Conv2d(self.feature_num * 3, 3, kernel_size=1, stride=1, padding=0)
         elif self.upsample_mode == 2:
-            self.conv_out1 = nn.Conv2d(self.feature_num * 2, self.feature_num, kernel_size=1, stride=1, padding=0).cuda()
+            self.conv_out1 = nn.Conv2d(self.feature_num * 2, self.feature_num, kernel_size=1, stride=1, padding=0)
             self.bn = nn.BatchNorm2d(self.feature_num)
             self.relu = nn.ReLU()
-            self.conv_out2 = nn.Conv2d(self.feature_num * 2, self.feature_num, kernel_size=1, stride=1, padding=0).cuda()
+            self.conv_out2 = nn.Conv2d(self.feature_num * 2, self.feature_num, kernel_size=1, stride=1, padding=0)
             self.bn1 = nn.BatchNorm2d(self.feature_num)
             self.relu1 = nn.ReLU()
-            self.conv_out3 = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda()
+            self.conv_out3 = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0)
 
     def initialize_weights(self):
         for m in self.modules():
@@ -2014,6 +2036,65 @@ class colorTransform4(nn.Module):
         out_img_reshaped = out_img_reshaped.reshape(N, C, H, W)
         return out_img_reshaped
 
+class colorTransform5(nn.Module):
+    def __init__(self, control_point=16, offset_param=0.04, config=0):
+        super(colorTransform5, self).__init__()
+        self.w = nn.Parameter(torch.tensor([0.5, 0.5], dtype=torch.float32))
+        self.softmax = nn.Softmax(dim=0)
+        self.control_point = control_point
+        self.sigmoid = torch.nn.Sigmoid()
+        self.config = config
+        self.feature_num = config.feature_num
+
+        self.epsilon = 1e-8
+        
+        self.offset_param = offset_param
+        if self.offset_param != -1:
+            if config.trainable_offset == 1:
+                self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
+            else:
+                self.offset_param = offset_param
+
+    def forward(self, org_img, params, color_mapping_global_a, color_map_control):
+        #out_img = torch.zeros(N,C,H,W).cuda()
+        N, C, H, W = org_img.shape
+        #out_img = torch.zeros_like(org_img)
+        color_map_control_x = color_map_control.clone()
+        if self.offset_param != -1:
+            params = params.reshape(N, self.feature_num, self.control_point) * self.offset_param
+        else:
+            params = params.reshape(N, self.feature_num, self.control_point)
+        
+        params = torch.cumsum(params, dim=2)
+        color_map_control_y = color_map_control_x + params
+
+        color_map_control_y = torch.cat((color_map_control_y, color_map_control_y[:, :, self.control_point-1:self.control_point]), dim=2)
+        color_map_control_x = torch.cat((color_map_control_x, color_map_control_x[:, :, self.control_point-1:self.control_point]), dim=2)
+        img_reshaped = org_img.reshape(N, self.feature_num, -1)
+        #out_img_reshaped = out_img.reshape(N, self.feature_num, -1)
+        img_reshaped_val = img_reshaped * (self.control_point-1)
+
+
+        img_reshaped_index = torch.floor(img_reshaped * (self.control_point-1))
+        img_reshaped_index = img_reshaped_index.type(torch.int64)
+        img_reshaped_index_plus = img_reshaped_index + 1
+
+        img_reshaped_coeff = img_reshaped_val - img_reshaped_index
+        img_reshaped_coeff_one = 1.0 - img_reshaped_coeff
+
+        mapped_color_map_control_y = torch.gather(color_map_control_y, 2, img_reshaped_index)
+        mapped_color_map_control_y_plus = torch.gather(color_map_control_y, 2, img_reshaped_index_plus)
+
+        out_img_reshaped = img_reshaped_coeff_one * mapped_color_map_control_y + img_reshaped_coeff * mapped_color_map_control_y_plus
+        # for i in range(0, self.control_point):
+        #     mask = img_reshaped_index == i
+        #     masked_img_reshaped_coeff = mask * img_reshaped_coeff
+        #     masked_img_reshaped_coeff_one = mask * img_reshaped_coeff_one
+        #     out_img_reshaped += masked_img_reshaped_coeff_one * color_map_control_y[:,:,i:i+1] + masked_img_reshaped_coeff * color_map_control_y[:,:,i+1:i+2]
+
+        out_img_reshaped = out_img_reshaped.reshape(N, C, H, W)
+        return out_img_reshaped
+    
 class colorTransform_multi(nn.Module):
     def __init__(self, control_point=16, offset_param=0.04, num_weight=1, config=0):
         super(colorTransform_multi, self).__init__()

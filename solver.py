@@ -14,6 +14,16 @@ from vggloss import VGGPerceptualLoss, VGGContrastiveLoss
 import lpips
 import models_proposed
 
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data.distributed import DistributedSampler
+
+def setup(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+
+    # 작업 그룹 초기화
+    dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
 def gram_matrix(input):
     a, b, c, d = input.size()  # a=배치 크기(=1)
@@ -114,7 +124,7 @@ class solver_IE(object):
     """Solver for training and testing"""
     def __init__(self, config, path):
         self.epochs = config.epochs
-        self.log = config.log
+        self.log = config.logs
         self.dataset = config.dataset
         self.saveimg = config.saveimg
         self.test_step = config.test_step
@@ -122,20 +132,27 @@ class solver_IE(object):
         self.tv = config.total_variation
         self.vgg =config.vgg
         self.norm = config.norm
-        self.m = config.m
+        self.model = config.model
         self.iter_num = config.iter_num
         self.weight_mode = config.weight_mode
         self.style_loss = config.style_loss
+        self.parallel = config.parallel
 
+
+        if config.parallel > 0:
+            device = config.rank
+        else:
+            device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = device
         if config.loss == 'l1':
-            self.l1_loss = torch.nn.L1Loss().cuda()
+            self.l1_loss = torch.nn.L1Loss().cuda(device)
         elif config.loss == 'l2':
-            self.l1_loss = torch.nn.MSELoss().cuda()
+            self.l1_loss = torch.nn.MSELoss().cuda(device)
 
-        self.lpips_fn = lpips.LPIPS().cuda()
+        self.lpips_fn = lpips.LPIPS().cuda(device)
 
 
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        
 
         self.config = config
         self.vgg_mode = config.vgg_mode
@@ -148,29 +165,35 @@ class solver_IE(object):
         self.total_variation_loss = total_variation_loss().to(device)
 
         #self.model = DCPNet(config).cuda()
-        if config.m == 23:
+        if config.model == 23:
             self.model = models_proposed.DCPNet23(config).cuda()
-        elif config.m == 24:
+        elif config.model == 24:
             self.model = models_proposed.DCPNet24(config).cuda()
-        elif config.m == 25:
+        elif config.model == 25:
             self.model = models_proposed.DCPNet25(config).cuda()
-        elif config.m == 26:
+        elif config.model == 26:
             self.model = models_proposed.DCPNet26(config).cuda()
-        elif config.m == 27:
+        elif config.model == 27:
             self.model = models_proposed.DCPNet27(config).cuda()
-        elif config.m == 28:
+        elif config.model == 28:
             self.model = models_proposed.DCPNet28(config).cuda()
-        elif config.m == 29:
+        elif config.model == 29:
             self.model = models_proposed.DCPNet29_cor(config).cuda()
 
-        self.PSNR = PSNR().cuda()
+        if config.parallel > 0:
+            self.model = self.model.cuda(config.rank)
+            self.model = DDP(module=self.model, find_unused_parameters=True, device_ids=[config.rank])
+        self.PSNR = PSNR().cuda(device)
         self.PSNR.training = False
         self.lr = config.lr
         self.lrratio = config.lrratio
         self.weight_decay = config.weight_decay
 
+
         train_loader = data_loader.DataLoader(config.dataset, path, config=config, batch_size=config.batch_size, istrain=True, num_workers=config.num_workers)
         test_loader = data_loader.DataLoader(config.dataset, path, config=config, batch_size=1, istrain=False)
+        if self.parallel > 0:
+            self.train_sampler = train_loader.train_sampler
 
         batch_step_num = math.ceil(train_loader.data.__len__() / config.batch_size)
 
@@ -232,6 +255,7 @@ class solver_IE(object):
         best_loss3 = self.best_loss
         best_ssim3 = self.best_ssim
         best_lpips3 = self.best_lpips
+        device = self.device
 
         for t in range(self.start_epoch, self.epochs):
             epoch_loss = 0
@@ -239,7 +263,8 @@ class solver_IE(object):
             epoch_ssim = 0
             epoch_lpips = 0
             i = 0
-
+            if self.parallel > 0:
+                self.train_sampler.set_epoch(t)
             start = time.time()
             for img, label, index in self.train_data:
                 i = i+1
@@ -248,11 +273,11 @@ class solver_IE(object):
                 color_position = torch.tensor(temp)
                 color_position = color_position.unsqueeze(0).unsqueeze(1)
                 color_position = color_position.repeat(N, self.config.feature_num, 1)
-                color_position = torch.tensor(color_position.cuda())
+                color_position = torch.tensor(color_position.cuda(device))
 
-                img = torch.tensor(img.cuda())
-                index = torch.tensor(index.cuda())
-                label = torch.tensor(label.cuda())
+                img = torch.tensor(img.cuda(device))
+                index = torch.tensor(index.cuda(device))
+                label = torch.tensor(label.cuda(device))
                 self.optimizer.zero_grad()
 
                 
@@ -376,7 +401,7 @@ class solver_IE(object):
     def test(self, data):
         """Testing"""
         self.model.train(False)
-
+        device = self.device
         epoch_loss = 0
         epoch_psnr = 0
         epoch_ssim = 0
@@ -394,11 +419,11 @@ class solver_IE(object):
             color_position = torch.tensor(temp)
             color_position = color_position.unsqueeze(0).unsqueeze(1)
             color_position = color_position.repeat(N, self.config.feature_num, 1)
-            color_position = torch.tensor(color_position.cuda())
+            color_position = torch.tensor(color_position.cuda(device))
             # Data.
-            img = torch.tensor(img.cuda())
-            index = torch.tensor(index.cuda())
-            label = torch.tensor(label.cuda())
+            img = torch.tensor(img.cuda(device))
+            index = torch.tensor(index.cuda(device))
+            label = torch.tensor(label.cuda(device))
 
             n = n + 1
             if n % int(data.__len__() / 10) == 0:

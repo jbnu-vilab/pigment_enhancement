@@ -4,6 +4,8 @@ import folders
 import random
 import torchvision.transforms.functional as F
 from ppr10k import ImageDataset_paper, ImageDataset_paper2, ImageDataset_paper3
+from torch.utils.data.distributed import DistributedSampler
+
 # 1. random crop with random..size
 class RandomCropWithRandomSize(object):
     def __init__(self, range1, range2):
@@ -144,6 +146,7 @@ class DataLoader(object):
 
         self.batch_size = batch_size
         self.istrain = istrain
+        self.config = config
         if (dataset == 'adobe5k' or dataset == 'LOL' or dataset == 'uieb' or dataset == 'hdr'):
              # Train transforms
             if istrain:
@@ -224,11 +227,31 @@ class DataLoader(object):
             else:
                 self.data = ImageDataset_paper2(root=path, mode="test", use_mask=False)
         self.num_workers = num_workers
+        if self.istrain == 1:
+            if self.config.parallel > 0:
+                self.train_sampler = DistributedSampler(dataset=self.data, shuffle=True)
+            else:
+                self.train_sampler = 0
+            
+        else:
+            if self.config.parallel > 0:
+                self.test_sampler = DistributedSampler(dataset=self.data, shuffle=False)
+            else:
+                self.train_sampler = 0
+
+
 
     def get_data(self):
-        if self.istrain:
-            dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
+        if self.config.parallel == 0:
+            if self.istrain:
+                dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
+            else:
+                dataloader = torch.utils.data.DataLoader(self.data, batch_size=1, shuffle=False)
         else:
-            dataloader = torch.utils.data.DataLoader(self.data, batch_size=1, shuffle=False)
+            if self.istrain:
+                
+                dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size // self.config.world_size, shuffle=False, num_workers= 8 // self.config.world_size, sampler = self.train_sampler, pin_memory=True )
+            else:
+                dataloader = torch.utils.data.DataLoader(self.data, batch_size=1, shuffle=False, sampler=self.test_sampler, pin_memory=True)
 
         return dataloader
