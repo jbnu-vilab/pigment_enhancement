@@ -210,7 +210,10 @@ class solver_IE(object):
             self.scheduler = WarmupCosineSchedule(self.optimizer, warmup_steps=math.ceil(batch_step_num * config.warmup_step), t_total=batch_step_num * config.epochs, cycles=0.5)
 
         if config.resume == 1: # resume to the latest epoch
-            checkpoint = torch.load('./model/{}_latest.pth'.format(self.log[:-4]))
+            if self.parallel > 0:
+                checkpoint = torch.load('./model/{}_best.pth'.format(self.log[:-4]))
+            else:
+                checkpoint = torch.load('./model/{}_latest.pth'.format(self.log[:-4]), map_location='cuda:0')
 
             self.model.load_state_dict(checkpoint["model"], strict=False)
             self.optimizer.load_state_dict(checkpoint["optimizer"])
@@ -221,7 +224,10 @@ class solver_IE(object):
             self.best_lpips = checkpoint["best_lpips"]
             print(self.start_epoch, self.best_psnr, self.best_loss, self.best_ssim, self.best_lpips)
         elif config.resume == 2: # resume to the best epoch
-            checkpoint = torch.load('./model/{}_best.pth'.format(self.log[:-4]))
+            if self.parallel > 0:
+                checkpoint = torch.load('./model/{}_best.pth'.format(self.log[:-4]))
+            else:
+                checkpoint = torch.load('./model/{}_best.pth'.format(self.log[:-4]), map_location='cuda:0')
 
             self.model.load_state_dict(checkpoint["model"], strict=False)
             self.optimizer.load_state_dict(checkpoint["optimizer"])
