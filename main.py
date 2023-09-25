@@ -282,7 +282,7 @@ if __name__ == '__main__':
     config = parser.parse_args()
     if config.parallel > 0:
         init_for_distributed(config)
-        local_gpu_id = config.gpu
-        config.local_gpu_id = local_gpu_id
+        #local_gpu_id = config.gpu
+        #config.local_gpu_id = local_gpu_id
     main(config)
 
