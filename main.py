@@ -10,7 +10,7 @@ from solver import solver_IE
 # os.environ['CUDA_VISIBLE_DEVICES'] = "0,1,2,3"
 
 def main(config):
-    os.environ['CUDA_VISIBLE_DEVICES'] = config.gpu
+    #os.environ['CUDA_VISIBLE_DEVICES'] = config.gpu
     folder_path = {
         'adobe5k': '../DB/Enhancement_DB/Adobe5k_480p_train_test/',
         'adobe5k2': '../DB/Enhancement_DB/Adobe5k_480p_train_test/',
