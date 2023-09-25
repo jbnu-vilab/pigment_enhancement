@@ -141,6 +141,17 @@ def main(config):
         best_loss, best_psnr, best_ssim, best_lpips = solver.test(solver.test_data)
         print("loss: {}, psnr: {}, ssim: {}, lpips: {}".format(best_loss, best_psnr, best_ssim, best_lpips))
         config.f.write("loss: {}, psnr: {}, ssim: {}, lpips: {}".format(best_loss, best_psnr, best_ssim, best_lpips))
+        #if config.parallel == 1:
+        #    print("rank: {}\n".format(config.rank))
+        #    if config.rank == 0:
+        #        best_loss, best_psnr, best_ssim, best_lpips = solver.test(solver.test_data)
+        #        print("loss: {}, psnr: {}, ssim: {}, lpips: {}".format(best_loss, best_psnr, best_ssim, best_lpips))
+        #        config.f.write("loss: {}, psnr: {}, ssim: {}, lpips: {}".format(best_loss, best_psnr, best_ssim, best_lpips))
+        #else:
+        #    best_loss, best_psnr, best_ssim, best_lpips = solver.test(solver.test_data)
+        #    print("loss: {}, psnr: {}, ssim: {}, lpips: {}".format(best_loss, best_psnr, best_ssim, best_lpips))
+        #    config.f.write("loss: {}, psnr: {}, ssim: {}, lpips: {}".format(best_loss, best_psnr, best_ssim, best_lpips))
+        
 
 
     config.f.close()

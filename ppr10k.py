@@ -32,6 +32,7 @@ class ImageDataset_paper(Dataset):
 
         if self.mode == "train":
             img_name = os.path.split(self.train_input_files[index % len(self.train_input_files)])[-1]
+            self.idx = index % len(self.train_input_files)
             img_input = cv2.imread(self.train_input_files[index % len(self.train_input_files)],-1)
             if len(self.train_input_files) == len(self.train_target_files):
                 img_exptC = Image.open(self.train_target_files[index % len(self.train_target_files)])
@@ -52,6 +53,7 @@ class ImageDataset_paper(Dataset):
 
         elif self.mode == "test":
             img_name = os.path.split(self.test_input_files[index % len(self.test_input_files)])[-1]
+            self.idx = index % len(self.test_input_files)
             img_input = cv2.imread(self.test_input_files[index % len(self.test_input_files)],-1)
             img_exptC = Image.open(self.test_target_files[index % len(self.test_target_files)])
             if self.use_mask:
@@ -97,7 +99,7 @@ class ImageDataset_paper(Dataset):
         if self.use_mask:
             return {"A_input": img_input, "A_exptC": img_exptC, "input_name": img_name, "mask": img_mask}
         else:
-            return img_input, img_exptC, color_map
+            return img_input, img_exptC, color_map, self.idx
 
     def __len__(self):
         if self.mode == "train":
