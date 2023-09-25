@@ -277,10 +277,11 @@ if __name__ == '__main__':
 
     parser.add_argument("--local-rank", dest='local-rank', type=int, default=0)
     parser.add_argument("--local_rank", dest='local_rank', type=int, default=0)
-    parser.add_argument("--dist_url", dest='dist_url', type=str, default="tcp://127.0.0.1:23456")
+    #parser.add_argument("--dist_url", dest='dist_url', type=str, default="tcp://127.0.0.1:23456")
     
     config = parser.parse_args()
     if config.parallel > 0:
+        config.dist_url = "tcp://127.0.0.1:{}".format(os.environ["MASTER_PORT"])
         init_for_distributed(config)
         #local_gpu_id = config.gpu
         #config.local_gpu_id = local_gpu_id
