@@ -137,9 +137,10 @@ class solver_IE(object):
         self.weight_mode = config.weight_mode
         self.style_loss = config.style_loss
         self.parallel = config.parallel
-
+        
 
         if config.parallel > 0:
+            self.rank = config.rank
             device = config.rank
         else:
             device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -345,6 +346,11 @@ class solver_IE(object):
             self.f.write('train loss %f, PSNR %f SSIM %f LPIPS %f\n' % (epoch_loss, epoch_psnr, epoch_ssim, epoch_lpips))
             if (t+1) % self.test_step == 0:
                 with torch.no_grad():
+                    if self.parallel == 1:
+                        #print("rank: {}\n".format(self.config.rank))
+                        if self.config.rank != 0:
+                            continue
+                        #print("rank: {}\n".format(self.config.rank))
                     test_loss, test_psnr, test_ssim, test_lpips = self.test(self.test_data)
                     print('test loss %f, PSNR %f SSIM %f LPIPS %f' % (test_loss, test_psnr, test_ssim, test_lpips))
                     self.f.write('test loss %f, PSNR %f SSIM %f LPIPS %f\n' % (test_loss, test_psnr, test_ssim, test_lpips))
@@ -464,13 +470,18 @@ class solver_IE(object):
 
             #save_img
             if self.saveimg != 0:
+<<<<<<< HEAD
                 img_path2 = "{}/{:04d}.png".format(img_path, img_idx)
+=======
+                img_path2 = "{}/{:04d}.png".format(img_path, img_idx[0])
+>>>>>>> 3d75b2a5fabd465a43c1747bcdf3f764c6bc1694
                 save_image(pred, img_path2)
 
-        print('\n')
+        #print('\n{} images\n'.format(n))
         epoch_loss = epoch_loss / n
         epoch_psnr = epoch_psnr / n
         epoch_ssim = epoch_ssim / n
         epoch_lpips = epoch_lpips / n
+        
         self.model.train(True)
         return epoch_loss, epoch_psnr, epoch_ssim, epoch_lpips

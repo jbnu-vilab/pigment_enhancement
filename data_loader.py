@@ -252,6 +252,7 @@ class DataLoader(object):
                 
                 dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size // self.config.world_size, shuffle=False, num_workers= 8 // self.config.world_size, sampler = self.train_sampler, pin_memory=True )
             else:
-                dataloader = torch.utils.data.DataLoader(self.data, batch_size=1, shuffle=False, sampler=self.test_sampler, pin_memory=True)
+                #dataloader = torch.utils.data.DataLoader(self.data, batch_size=1, shuffle=False, sampler=self.test_sampler, pin_memory=True)
+                dataloader = torch.utils.data.DataLoader(self.data, batch_size=1, shuffle=False)
 
         return dataloader
