@@ -65,11 +65,11 @@ class Adobe5kFolder(data.Dataset):
 
         #sample = self.img[index // self.patch_num].copy()
         if self.transform is not None:
-            output, index = self.transform(output)
+            output, index1 = self.transform(output)
             #gt = self.transform(gt)
         org = output[:3]
         gt = output[3:]
-        return org, gt, index
+        return org, gt, index1, index
 
     def __len__(self):
         length = len(self.org_list)

@@ -272,7 +272,7 @@ class solver_IE(object):
             if self.parallel > 0:
                 self.train_sampler.set_epoch(t)
             start = time.time()
-            for img, label, index in self.train_data:
+            for img, label, index, img_idx in self.train_data:
                 i = i+1
                 N, C, H, W = img.shape
                 temp = [i / (self.control_point+1) for i in range(self.control_point+2)]
@@ -419,7 +419,7 @@ class solver_IE(object):
                 os.makedirs(img_path)
 
 
-        for img, label, index in data:
+        for img, label, index, img_idx in data:
             N, C, H, W = img.shape
             temp = [i / (self.control_point + 1) for i in range(self.control_point + 2)]
             color_position = torch.tensor(temp)
@@ -465,7 +465,7 @@ class solver_IE(object):
             #save_img
             if self.saveimg != 0:
 
-                img_path2 = "{}/{:04d}.png".format(img_path, n)
+                img_path2 = "{}/{:04d}.png".format(img_path, img_idx)
                 save_image(pred, img_path2)
 
         print('\n')
