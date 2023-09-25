@@ -470,11 +470,7 @@ class solver_IE(object):
 
             #save_img
             if self.saveimg != 0:
-<<<<<<< HEAD
-                img_path2 = "{}/{:04d}.png".format(img_path, img_idx)
-=======
                 img_path2 = "{}/{:04d}.png".format(img_path, img_idx[0])
->>>>>>> 3d75b2a5fabd465a43c1747bcdf3f764c6bc1694
                 save_image(pred, img_path2)
 
         #print('\n{} images\n'.format(n))
