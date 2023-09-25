@@ -464,7 +464,6 @@ class solver_IE(object):
 
             #save_img
             if self.saveimg != 0:
-
                 img_path2 = "{}/{:04d}.png".format(img_path, img_idx)
                 save_image(pred, img_path2)
 
