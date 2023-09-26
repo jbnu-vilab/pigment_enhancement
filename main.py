@@ -197,7 +197,7 @@ if __name__ == '__main__':
     parser.add_argument("--num_workers", dest='num_workers', type=int, default=4)
     parser.add_argument("--trainable_gamma", dest='trainable_gamma', type=int, default=0)
     parser.add_argument("--trainable_offset", dest='trainable_offset', type=int, default=1)
-    parser.add_argument("--offset_param", dest='offset_param', type=float, default=0.04)
+    parser.add_argument("--offset_param", dest='offset_param', type=float, default=0.1)
     parser.add_argument("--offset_param2", dest='offset_param2', type=float, default=0.04)
     parser.add_argument("--gamma_param", dest='gamma_param', type=float, default=0.1)
     parser.add_argument("--jitter", type=int, default=0)
@@ -283,6 +283,9 @@ if __name__ == '__main__':
     #parser.add_argument("--dist_url", dest='dist_url', type=str, default="tcp://127.0.0.1:23456")
     
     config = parser.parse_args()
+    num_device = torch.cuda.device_count()
+    if num_device > 1:
+        config.parallel = 1
     if config.parallel > 0:
         config.dist_url = "tcp://127.0.0.1:{}".format(os.environ["MASTER_PORT"])
         init_for_distributed(config)
