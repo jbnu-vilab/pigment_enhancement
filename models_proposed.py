@@ -2132,7 +2132,7 @@ class DCPNet30(nn.Module):
             self.initialize_weights()
         if self.hyper == 0:
             self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num,
-                                           fc_num=config.fc_num)
+                                           fc_num=config.fc_num, init_w=config.init_w)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
             if self.hyper_conv == 1:
@@ -2140,7 +2140,7 @@ class DCPNet30(nn.Module):
             elif self.hyper_conv == 3:
                 param_num += (3 * self.feature_num) * 9
             self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num,
-                                           fc_num=config.fc_num)
+                                           fc_num=config.fc_num, init_w=config.init_w)
 
         self.sigmoid = nn.Sigmoid()
         self.tanh = nn.Tanh()
@@ -2768,10 +2768,18 @@ class colorTransform_xoffset(nn.Module):
 
         out_img_reshaped = out_img_reshaped.reshape(N, C, H, W)
         return out_img_reshaped
-
+def initialize_weights_part(net):
+    for m in net.modules():
+        if isinstance(m, (nn.Conv2d, nn.Linear)):
+            nn.init.kaiming_normal_(m.weight)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0.0)
+        elif isinstance(m, nn.BatchNorm2d):
+            nn.init.constant_(m.weight, 1.0)
+            nn.init.constant_(m.bias, 0.0)
 class resnet18_224(nn.Module):
 
-    def __init__(self, out_dim=5, res_num=18, res_size=224, aug_test=False, fc_num=1):
+    def __init__(self, out_dim=5, res_num=18, res_size=224, aug_test=False, fc_num=1, init_w=0):
         super(resnet18_224, self).__init__()
 
         self.aug_test = aug_test
@@ -2795,6 +2803,9 @@ class resnet18_224(nn.Module):
             self.upsample = nn.Upsample(size=(res_size, res_size), mode='bilinear')
         if res_num == 50 or res_num == 101:
             net.fc = nn.Linear(2048, out_dim)
+            if init_w > 0:
+                initialize_weights_part(net.fc)
+
         elif res_num == 18 or res_num == 34:
             if fc_num == 1:
                 net.fc = nn.Linear(512, out_dim)
@@ -2815,11 +2826,18 @@ class resnet18_224(nn.Module):
                           nn.ReLU(),
                           nn.Linear(2048, out_dim)]
                 net.fc = nn.Sequential(*lists)
+            if init_w > 0:
+                initialize_weights_part(net.fc)
             
             #multi layer...
         elif res_num == 16 or res_num == 19:
             net.classifier[-1] = nn.Linear(4096, out_dim)
+            if init_w > 0:
+                nn.init.kaiming_normal_(net.classifier[-1].weight)
+                if net.classifier[-1].bias is not None:
+                    nn.init.constant_(net.classifier[-1].bias, 0.0)
         self.model = net
+
 
     def forward(self, x):
         x = self.upsample(x)
