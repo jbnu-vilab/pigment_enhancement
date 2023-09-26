@@ -325,9 +325,9 @@ class solver_IE(object):
                     loss = self.l1_loss(pred, label)
                 else:
                     loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(pred, label)
-
-                if self.config.model_loss > 0:
-                    loss += (self.config.model_loss * torch.mean(params))
+                if self.modeln == 30:
+                    if self.config.model_loss > 0:
+                        loss += (self.config.model_loss * torch.mean(params))
                 loss.backward()
                 self.optimizer.step()
                 self.scheduler.step()
