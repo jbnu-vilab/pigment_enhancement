@@ -277,6 +277,9 @@ if __name__ == '__main__':
 
     parser.add_argument("--local-rank", dest='local-rank', type=int, default=0)
     parser.add_argument("--local_rank", dest='local_rank', type=int, default=0)
+
+    parser.add_argument("--model_loss", dest='model_loss', type=float, default=0)
+    parser.add_argument("--init_w", dest='init_w', type=int, default=0)
     #parser.add_argument("--dist_url", dest='dist_url', type=str, default="tcp://127.0.0.1:23456")
     
     config = parser.parse_args()
