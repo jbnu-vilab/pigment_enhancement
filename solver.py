@@ -212,9 +212,10 @@ class solver_IE(object):
 
         if config.resume == 1: # resume to the latest epoch
             if self.parallel > 0:
-                checkpoint = torch.load('./model/{}_best.pth'.format(self.log[:-4]))
+                checkpoint = torch.load('./model/{}_latest.pth'.format(self.log[:-4]))
             else:
-                checkpoint = torch.load('./model/{}_latest.pth'.format(self.log[:-4]), map_location='cuda:0')
+                checkpoint = torch.load('./model/{}_latest.pth'.format(self.log[:-4]))
+                #checkpoint = torch.load('./model/{}_latest.pth'.format(self.log[:-4]), map_location='cuda:0')
 
             self.model.load_state_dict(checkpoint["model"], strict=False)
             self.optimizer.load_state_dict(checkpoint["optimizer"])
@@ -223,16 +224,23 @@ class solver_IE(object):
             self.best_loss = checkpoint["best_loss"]
             self.best_ssim = checkpoint["best_ssim"]
             self.best_lpips = checkpoint["best_lpips"]
+            self.best_epoch = checkpoint["best_epoch"]
             print(self.start_epoch, self.best_psnr, self.best_loss, self.best_ssim, self.best_lpips)
         elif config.resume == 2: # resume to the best epoch
             if self.parallel > 0:
                 checkpoint = torch.load('./model/{}_best.pth'.format(self.log[:-4]))
             else:
-                checkpoint = torch.load('./model/{}_best.pth'.format(self.log[:-4]), map_location='cuda:0')
+                checkpoint = torch.load('./model/{}_best.pth'.format(self.log[:-4]))
+                #checkpoint = torch.load('./model/{}_best.pth'.format(self.log[:-4]), map_location='cuda:0')
 
             self.model.load_state_dict(checkpoint["model"], strict=False)
             self.optimizer.load_state_dict(checkpoint["optimizer"])
             self.start_epoch = checkpoint["epoch"]
+            self.best_psnr = checkpoint["best_psnr"]
+            self.best_loss = checkpoint["best_loss"]
+            self.best_ssim = checkpoint["best_ssim"]
+            self.best_lpips = checkpoint["best_lpips"]
+            self.best_epoch = checkpoint["best_epoch"]
 
         else:
             self.start_epoch = 0
@@ -240,6 +248,8 @@ class solver_IE(object):
             self.best_loss = 100
             self.best_ssim = 0
             self.best_lpips = 100
+
+            self.best_epoch = 0
 
         self.train_data = train_loader.get_data()
         self.test_data = test_loader.get_data()
@@ -262,6 +272,8 @@ class solver_IE(object):
         best_loss3 = self.best_loss
         best_ssim3 = self.best_ssim
         best_lpips3 = self.best_lpips
+
+        best_epoch = self.best_epoch
         device = self.device
 
         for t in range(self.start_epoch, self.epochs):
@@ -360,6 +372,7 @@ class solver_IE(object):
                         best_loss = test_loss
                         best_ssim = test_ssim
                         best_lpips = test_lpips
+                        best_epoch = t
 
                     if best_ssim2 < test_ssim:
                         best_psnr2 = test_psnr
@@ -381,6 +394,7 @@ class solver_IE(object):
                         "best_ssim": best_ssim,
                         "best_loss": best_loss,
                         "best_lpips": best_lpips,
+                        "best_epoch": best_epoch,
                         "model": self.model.state_dict(),
                         "optimizer": self.optimizer.state_dict(),
                     }
@@ -401,6 +415,8 @@ class solver_IE(object):
                     self.f.write('Best test loss3 %f, PSNR %f SSIM %f LPIPS %f\n' % (best_loss3, best_psnr3, best_ssim3, best_lpips3))
                     path = "./model/{}_latest.pth".format(self.log[:-4])
                     torch.save(save_dict, path)
+            if t - best_epoch >= 150:
+                break
 
 
         print('Best test loss %f, PSNR %f SSIM %f' % (best_loss, best_psnr, best_ssim))
