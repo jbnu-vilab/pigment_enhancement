@@ -137,7 +137,7 @@ class solver_IE(object):
         self.weight_mode = config.weight_mode
         self.style_loss = config.style_loss
         self.parallel = config.parallel
-        
+        self.modeln = config.model
 
         if config.parallel > 0:
             self.rank = config.rank
@@ -180,6 +180,8 @@ class solver_IE(object):
             self.model = models_proposed.DCPNet28(config).cuda()
         elif config.model == 29:
             self.model = models_proposed.DCPNet29_cor(config).cuda()
+        elif config.model == 30:
+            self.model = models_proposed.DCPNet30(config).cuda()
 
         if config.parallel > 0:
             self.model = self.model.cuda(config.rank)
@@ -315,13 +317,17 @@ class solver_IE(object):
                 elif self.weight_mode == 6:
                     loss_weight = [0.02, 0.05, 0.1]
 
-
-                pred = self.model(img, index, color_position)
+                if self.modeln == 30:
+                    pred, params = self.model(img, index, color_position)
+                else:
+                    pred = self.model(img, index, color_position)
                 if self.vgg_loss == 0:
                     loss = self.l1_loss(pred, label)
                 else:
                     loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(pred, label)
 
+                if self.config.model_loss > 0:
+                    loss += (self.config.model_loss * torch.mean(params))
                 loss.backward()
                 self.optimizer.step()
                 self.scheduler.step()
@@ -458,8 +464,11 @@ class solver_IE(object):
                 sys.stdout.write('\rTest {}/{} '.format(n, data.__len__()))
                 self.f.write('Test {}/{}\n'.format(n, data.__len__()))
 
-
-            pred = self.model(img, index, color_position)
+            if self.modeln == 30:
+                pred, params = self.model(img, index, color_position)
+            else:
+                pred = self.model(img, index, color_position)
+            #pred = self.model(img, index, color_position)
                 
             if self.vgg_loss == 0:
                 loss = self.l1_loss(pred, label)
