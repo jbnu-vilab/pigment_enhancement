@@ -279,6 +279,7 @@ if __name__ == '__main__':
     parser.add_argument("--local_rank", dest='local_rank', type=int, default=0)
 
     parser.add_argument("--model_loss", dest='model_loss', type=float, default=0)
+    parser.add_argument("--model_loss_type", dest='model_loss_type', type=int, default=1)
     parser.add_argument("--init_w", dest='init_w', type=int, default=0)
     #parser.add_argument("--dist_url", dest='dist_url', type=str, default="tcp://127.0.0.1:23456")
     
@@ -286,6 +287,8 @@ if __name__ == '__main__':
     num_device = torch.cuda.device_count()
     if num_device > 1:
         config.parallel = 1
+    else:
+        config.parallel = 0
     if config.parallel > 0:
         config.dist_url = "tcp://127.0.0.1:{}".format(os.environ["MASTER_PORT"])
         init_for_distributed(config)

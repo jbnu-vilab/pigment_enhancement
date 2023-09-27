@@ -317,7 +317,7 @@ class solver_IE(object):
                 elif self.weight_mode == 6:
                     loss_weight = [0.02, 0.05, 0.1]
 
-                if self.modeln == 30:
+                if self.modeln == 30 or self.modeln == 31:
                     pred, params = self.model(img, index, color_position)
                 else:
                     pred = self.model(img, index, color_position)
@@ -325,10 +325,24 @@ class solver_IE(object):
                     loss = self.l1_loss(pred, label)
                 else:
                     loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(pred, label)
-                if self.modeln == 30:
+                if self.modeln == 30 or self.modeln == 31:
                     if self.config.model_loss > 0:
-                        params = torch.abs(params)
-                        loss += (self.config.model_loss * torch.mean(params))
+                        if self.config.model_loss_type == 1:
+                            params = torch.abs(params)
+                            loss += (self.config.model_loss * torch.mean(params))
+                        elif self.config.model_loss_type == 2:
+                            #consistency
+                            params_shift_left = params[:,:,1:]
+                            params_org = params[:,:,:-1]
+                            diff = torch.abs(params_shift_left - params_org)
+                            loss += (self.config.model_loss * torch.mean(diff))
+                        elif self.config.model_loss_type == 3:
+                            #monotonicity
+                            params_shift_left = params[:, :, 1:]
+                            params_org = params[:, :, :-1]
+                            m = nn.ReLU()
+                            diff = m(params_org - params_shift_left)
+                            loss += (self.config.model_loss * torch.mean(diff))
                 loss.backward()
                 self.optimizer.step()
                 self.scheduler.step()
@@ -465,7 +479,7 @@ class solver_IE(object):
                 sys.stdout.write('\rTest {}/{} '.format(n, data.__len__()))
                 self.f.write('Test {}/{}\n'.format(n, data.__len__()))
 
-            if self.modeln == 30:
+            if self.modeln == 30or self.modeln == 31:
                 pred, params = self.model(img, index, color_position)
             else:
                 pred = self.model(img, index, color_position)
