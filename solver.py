@@ -332,27 +332,27 @@ class solver_IE(object):
                 loss.backward()
                 self.optimizer.step()
                 self.scheduler.step()
+                with torch.no_grad():
+                    epoch_loss = epoch_loss + loss.detach().cpu().numpy()
 
-                epoch_loss = epoch_loss + loss.detach().cpu().numpy()
-                
-                if self.norm == 1:
-                    pred = 0.5 * (pred + 1.0)
-                    label = 0.5 * (label + 1.0)
-                psnr = self.PSNR(pred, label)
+                    if self.norm == 1:
+                        pred = 0.5 * (pred + 1.0)
+                        label = 0.5 * (label + 1.0)
+                    psnr = self.PSNR(pred, label)
 
-                ssim = structural_similarity(pred, label)
+                    ssim = structural_similarity(pred, label)
 
-                pred_lpips = pred.detach() * 2.0 - 1.0
-                label_lpips = label.detach() * 2.0 - 1.0
-                lpips = torch.mean(self.lpips_fn(pred_lpips, label_lpips).squeeze())
+                    pred_lpips = pred.detach() * 2.0 - 1.0
+                    label_lpips = label.detach() * 2.0 - 1.0
+                    lpips = torch.mean(self.lpips_fn(pred_lpips, label_lpips).squeeze())
 
-                epoch_psnr = epoch_psnr + psnr.detach().cpu().numpy()
-                epoch_ssim = epoch_ssim + ssim.detach().cpu().numpy()
-                epoch_lpips = epoch_lpips + lpips.detach().cpu().numpy()
+                    epoch_psnr = epoch_psnr + psnr.detach().cpu().numpy()
+                    epoch_ssim = epoch_ssim + ssim.detach().cpu().numpy()
+                    epoch_lpips = epoch_lpips + lpips.detach().cpu().numpy()
 
-                if i % 20 == 1:
-                    sys.stdout.write('\rEpoch {}: {}/{}, loss: {}'.format(t + 1, i, self.train_data.__len__(), loss))
-                    self.f.write('Epoch {}: {}/{}, loss: {}\n'.format(t + 1, i, self.train_data.__len__(), loss))
+                    if i % 20 == 1:
+                        sys.stdout.write('\rEpoch {}: {}/{}, loss: {}'.format(t + 1, i, self.train_data.__len__(), loss))
+                        self.f.write('Epoch {}: {}/{}, loss: {}\n'.format(t + 1, i, self.train_data.__len__(), loss))
 
             end = time.time()
             print('\n%f sec\n' % (end-start) )
