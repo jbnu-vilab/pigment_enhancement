@@ -436,7 +436,7 @@ class solver_IE(object):
                     self.f.write('Best test loss3 %f, PSNR %f SSIM %f LPIPS %f\n' % (best_loss3, best_psnr3, best_ssim3, best_lpips3))
                     path = "./model/{}_latest.pth".format(self.log[:-4])
                     torch.save(save_dict, path)
-            if t - best_epoch >= 150:
+            if t - best_epoch >= 200:
                 break
 
 
