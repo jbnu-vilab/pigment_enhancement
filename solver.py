@@ -284,6 +284,8 @@ class solver_IE(object):
             epoch_ssim = 0
             epoch_lpips = 0
             i = 0
+            if t - best_epoch >= 200:
+                break
             if self.parallel > 0:
                 self.train_sampler.set_epoch(t)
             start = time.time()
@@ -436,8 +438,7 @@ class solver_IE(object):
                     self.f.write('Best test loss3 %f, PSNR %f SSIM %f LPIPS %f\n' % (best_loss3, best_psnr3, best_ssim3, best_lpips3))
                     path = "./model/{}_latest.pth".format(self.log[:-4])
                     torch.save(save_dict, path)
-            if t - best_epoch >= 200:
-                break
+
 
 
         print('Best test loss %f, PSNR %f SSIM %f' % (best_loss, best_psnr, best_ssim))
