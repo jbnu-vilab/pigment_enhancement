@@ -194,7 +194,7 @@ if __name__ == '__main__':
 
 
     parser.add_argument("--use_param", dest='use_param', type=int, default=1)
-    parser.add_argument("--num_workers", dest='num_workers', type=int, default=4)
+    parser.add_argument("--num_workers", dest='num_workers', type=int, default=8)
     parser.add_argument("--trainable_gamma", dest='trainable_gamma', type=int, default=0)
     parser.add_argument("--trainable_offset", dest='trainable_offset', type=int, default=1)
     parser.add_argument("--offset_param", dest='offset_param', type=float, default=0.1)
