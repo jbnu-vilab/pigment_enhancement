@@ -284,8 +284,8 @@ class solver_IE(object):
             epoch_ssim = 0
             epoch_lpips = 0
             i = 0
-            if t - best_epoch >= 200:
-                break
+            #if t - best_epoch >= 200:
+            #    break
             if self.parallel > 0:
                 self.train_sampler.set_epoch(t)
             start = time.time()
