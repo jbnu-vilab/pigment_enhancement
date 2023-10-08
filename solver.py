@@ -8,7 +8,7 @@ import torch.nn as nn
 import kornia
 import math
 import torch
-from scheduler import WarmupCosineSchedule
+from scheduler import WarmupCosineSchedule, ConstantLRSchedule
 from torchvision.utils import save_image
 from vggloss import VGGPerceptualLoss, VGGContrastiveLoss
 import lpips
@@ -211,7 +211,11 @@ class solver_IE(object):
 
         if config.scheduler == 'cos_warmup':
             self.scheduler = WarmupCosineSchedule(self.optimizer, warmup_steps=math.ceil(batch_step_num * config.warmup_step), t_total=batch_step_num * config.epochs, cycles=0.5)
-
+        elif config.scheduler == 'constant':
+            self.scheduler = ConstantLRSchedule(self.optimizer)
+        elif config.scheduler == 'cosine':
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=10 * batch_step_num, eta_min = 5e-10)
+        
         if config.resume == 1: # resume to the latest epoch
             if self.parallel > 0:
                 checkpoint = torch.load('./model/{}_latest.pth'.format(self.log[:-4]))
