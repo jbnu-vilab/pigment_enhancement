@@ -2904,8 +2904,8 @@ class colorTransform_xoffset_softmax(nn.Module):
         color_map_control_x = torch.cat(
             (color_map_control_x, color_map_control_x[:, :, self.control_point - 1:self.control_point]), dim=2)
 
-        color_map_control_x, sort_x_idx = torch.sort(color_map_control_x, dim=2)
-        color_map_control_y = torch.gather(input=color_map_control_y, dim=2, index=sort_x_idx)
+        #color_map_control_x, sort_x_idx = torch.sort(color_map_control_x, dim=2)
+        #color_map_control_y = torch.gather(input=color_map_control_y, dim=2, index=sort_x_idx)
 
         img_reshaped = org_img.reshape(N, self.feature_num, -1)
 
