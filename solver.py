@@ -200,6 +200,27 @@ class solver_IE(object):
 
         batch_step_num = math.ceil(train_loader.data.__len__() / config.batch_size)
 
+        self.new_res = config.new_res
+        self.hyper = config.hyper
+        if config.new_res > 0:
+            self.param1_freeze_epoch = config.param1_freeze_epoch
+            self.param2_freeze_epoch = config.param2_freeze_epoch
+            param1_params = list(map(id, self.model.classifier.fc.parameters()))
+            if config.hyper > 0:
+                param2_params = list(map(id, self.model.classifier.fc2.parameters()))
+                param1_params += param2_params
+                other_params = filter(lambda p: id(p) not in param1_params, self.model.parameters())
+                self.paras = [{'params': other_params, 'lr': self.lr},
+                              {'params': self.model.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio},
+                              {'params': self.model.classifier.fc2.parameters(), 'lr': self.lr * config.param2_lr_ratio}]
+            else:
+                other_params = filter(lambda p: id(p) not in param1_params, self.model.parameters())
+                self.paras = [{'params': other_params, 'lr': self.lr},
+                              {'params': param1_params, 'lr': self.lr * self.param1_lr_ratio}]
+            self.optimizer = torch.optim.Adam(self.paras, weight_decay=self.weight_decay)
+        else:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
         #backbone_params = list(map(id, self.model.classifier.parameters()))
         #self.hypernet_params = filter(lambda p: id(p) not in backbone_params, self.model.parameters())
         #self.paras = [{'params': self.hypernet_params, 'lr': self.lr * self.lrratio},
@@ -207,7 +228,7 @@ class solver_IE(object):
         #              ]
         #self.optimizer = torch.optim.Adam(self.paras, weight_decay=self.weight_decay)
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
 
         if config.scheduler == 'cos_warmup':
             self.scheduler = WarmupCosineSchedule(self.optimizer, warmup_steps=math.ceil(batch_step_num * config.warmup_step), t_total=batch_step_num * config.epochs, cycles=0.5)
@@ -283,6 +304,14 @@ class solver_IE(object):
         device = self.device
 
         for t in range(self.start_epoch, self.epochs):
+            if self.new_res > 0:
+                if t+1 == self.param1_freeze_epoch:
+                    for name, param in self.model.classifier.fc.named_parameters():
+                        param.requires_grad = False
+                if self.hyper > 0:
+                    if t + 1 == self.param2_freeze_epoch:
+                        for name, param in self.model.classifier.fc2.named_parameters():
+                            param.requires_grad = False
             epoch_loss = 0
             epoch_psnr = 0
             epoch_ssim = 0
