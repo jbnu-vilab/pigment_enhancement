@@ -522,7 +522,7 @@ class DCPNet24(nn.Module):
         elif config.xoffset == 1:
             self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config)
         elif config.xoffset == 2:
-            self.colorTransform = colorTransform_xoffset_softmax(self.control_point_num, config.offset_param, config)
+            self.colorTransform = colorTransform_xoffset_softmax(self.control_point_num, config.offset_param, config.offset_param2, config)
         if config.conv_mode == 3:
             self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda()
         elif config.conv_mode == 1:
@@ -2804,15 +2804,21 @@ class colorTransform_xoffset(nn.Module):
         N, C, H, W = org_img.shape
         #out_img = torch.zeros_like(org_img)
         color_map_control_x = color_map_control.clone()
-        params = params.reshape(N, self.feature_num, -1) * self.offset_param
+
+        y_params = params[:,:self.control_point*self.feature_num]
+        x_params = params[:,self.control_point*self.feature_num:]
+
+        y_params = y_params.reshape(N, self.feature_num, -1) * self.offset_param
+        x_params = x_params.reshape(N, self.feature_num, -1) * self.offset_param
+        #params = params.reshape(N, self.feature_num, -1) * self.offset_param
 
         temp1 = torch.zeros(N, self.feature_num, 1).cuda()
         temp2 = torch.zeros(N, self.feature_num, 1).cuda()
 
         img_reshaped_index = -1 *torch.ones(N, C, H * W).cuda()
 
-        y_params = params[:,:,:self.control_point]
-        x_params = torch.cat((temp1, params[:,:,self.control_point:], temp2), dim=2)
+        #y_params = params[:,:,:self.control_point]
+        x_params = torch.cat((temp1, x_params, temp2), dim=2)
 
         color_map_control_y = color_map_control_x + y_params
         color_map_control_x = color_map_control_x + x_params
@@ -2863,7 +2869,7 @@ class colorTransform_xoffset(nn.Module):
 
 
 class colorTransform_xoffset_softmax(nn.Module):
-    def __init__(self, control_point=16, offset_param=0.04, config=0):
+    def __init__(self, control_point=16, offset_param=0.04, offset_param2=0.04, config=0):
         super(colorTransform_xoffset_softmax, self).__init__()
         self.w = nn.Parameter(torch.tensor([0.5, 0.5], dtype=torch.float32))
         self.softmax = nn.Softmax(dim=0)
@@ -2875,22 +2881,26 @@ class colorTransform_xoffset_softmax(nn.Module):
         self.epsilon = 1e-8
 
         self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
+        self.offset_param2 = nn.Parameter(torch.tensor([offset_param2], dtype=torch.float32))
 
     def forward(self, org_img, params, color_mapping_global_a, color_map_control):
         # out_img = torch.zeros(N,C,H,W).cuda()
         N, C, H, W = org_img.shape
         # out_img = torch.zeros_like(org_img)
         color_map_control_x = color_map_control.clone()
-        params = params.reshape(N, self.feature_num, -1) * self.offset_param
+
+        y_params = params[:, :self.feature_num * self.control_point]
+        x_params = params[:,  self.feature_num * self.control_point:]
+
+        y_params = y_params.reshape(N, self.feature_num, -1) * self.offset_param
+        x_params = x_params.reshape(N, self.feature_num, -1) * self.offset_param2
 
         temp1 = torch.zeros(N, self.feature_num, 1).cuda()
-        temp2 = torch.zeros(N, self.feature_num, 1).cuda()
+
 
         img_reshaped_index = -1 * torch.ones(N, C, H * W).cuda()
 
-        y_params = params[:, :, :self.control_point]
 
-        x_params = params[:, :, self.control_point:]
         m = nn.Softmax(dim=2)
         x_params = m(x_params)
         x_params = torch.cumsum(x_params, dim=2)

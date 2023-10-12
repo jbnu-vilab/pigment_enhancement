@@ -198,7 +198,7 @@ if __name__ == '__main__':
     parser.add_argument("--trainable_gamma", dest='trainable_gamma', type=int, default=0)
     parser.add_argument("--trainable_offset", dest='trainable_offset', type=int, default=1)
     parser.add_argument("--offset_param", dest='offset_param', type=float, default=0.1)
-    parser.add_argument("--offset_param2", dest='offset_param2', type=float, default=0.04)
+    parser.add_argument("--offset_param2", dest='offset_param2', type=float, default=0.1)
     parser.add_argument("--gamma_param", dest='gamma_param', type=float, default=0.1)
     parser.add_argument("--jitter", type=int, default=0)
     parser.add_argument("--lpips", dest='lpips', type=int, default=1)
