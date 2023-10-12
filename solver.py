@@ -205,18 +205,29 @@ class solver_IE(object):
         if config.new_res > 0:
             self.param1_freeze_epoch = config.param1_freeze_epoch
             self.param2_freeze_epoch = config.param2_freeze_epoch
-            param1_params = list(map(id, self.model.classifier.fc.parameters()))
+            if config.parallel == 0:
+                param1_params = list(map(id, self.model.classifier.fc.parameters()))
+            else:
+                param1_params = list(map(id, self.model.module.classifier.fc.parameters()))
             if config.hyper > 0:
-                param2_params = list(map(id, self.model.classifier.fc2.parameters()))
+                if config.parallel == 0:
+                    param2_params = list(map(id, self.model.classifier.fc2.parameters()))
+                else:
+                    param2_params = list(map(id, self.model.module.classifier.fc2.parameters()))
                 param1_params += param2_params
                 other_params = filter(lambda p: id(p) not in param1_params, self.model.parameters())
-                self.paras = [{'params': other_params, 'lr': self.lr},
-                              {'params': self.model.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio},
-                              {'params': self.model.classifier.fc2.parameters(), 'lr': self.lr * config.param2_lr_ratio}]
+                if config.parallel == 0:
+                    self.paras = [{'params': other_params, 'lr': self.lr},
+                                {'params': self.model.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio},
+                                {'params': self.model.classifier.fc2.parameters(), 'lr': self.lr * config.param2_lr_ratio}]
+                else:
+                    self.paras = [{'params': other_params, 'lr': self.lr},
+                                {'params': self.model.module.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio},
+                                {'params': self.model.module.classifier.fc2.parameters(), 'lr': self.lr * config.param2_lr_ratio}]
             else:
                 other_params = filter(lambda p: id(p) not in param1_params, self.model.parameters())
                 self.paras = [{'params': other_params, 'lr': self.lr},
-                              {'params': param1_params, 'lr': self.lr * self.param1_lr_ratio}]
+                              {'params': self.model.module.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio}]
             self.optimizer = torch.optim.Adam(self.paras, weight_decay=self.weight_decay)
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
