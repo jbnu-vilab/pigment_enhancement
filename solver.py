@@ -143,6 +143,7 @@ class solver_IE(object):
             self.rank = config.rank
             device = config.rank
         else:
+            config.rank = 0
             device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.device = device
         if config.loss == 'l1':
@@ -315,14 +316,24 @@ class solver_IE(object):
         device = self.device
 
         for t in range(self.start_epoch, self.epochs):
-            if self.new_res > 0:
-                if t+1 == self.param1_freeze_epoch:
-                    for name, param in self.model.classifier.fc.named_parameters():
-                        param.requires_grad = False
-                if self.hyper > 0:
-                    if t + 1 == self.param2_freeze_epoch:
-                        for name, param in self.model.classifier.fc2.named_parameters():
+            if self.parallel == 0:
+                if self.new_res > 0:
+                    if t+1 == self.param1_freeze_epoch:
+                        for name, param in self.model.classifier.fc.named_parameters():
                             param.requires_grad = False
+                    if self.hyper > 0:
+                        if t + 1 == self.param2_freeze_epoch:
+                            for name, param in self.model.classifier.fc2.named_parameters():
+                                param.requires_grad = False
+            else:
+                if self.new_res > 0:
+                    if t+1 == self.param1_freeze_epoch:
+                        for name, param in self.model.module.classifier.fc.named_parameters():
+                            param.requires_grad = False
+                    if self.hyper > 0:
+                        if t + 1 == self.param2_freeze_epoch:
+                            for name, param in self.model.module.classifier.fc2.named_parameters():
+                                param.requires_grad = False
             epoch_loss = 0
             epoch_psnr = 0
             epoch_ssim = 0
