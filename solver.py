@@ -8,7 +8,7 @@ import torch.nn as nn
 import kornia
 import math
 import torch
-from scheduler import WarmupCosineSchedule
+from scheduler import WarmupCosineSchedule, ConstantLRSchedule
 from torchvision.utils import save_image
 from vggloss import VGGPerceptualLoss, VGGContrastiveLoss
 import lpips
@@ -200,6 +200,38 @@ class solver_IE(object):
 
         batch_step_num = math.ceil(train_loader.data.__len__() / config.batch_size)
 
+        self.new_res = config.new_res
+        self.hyper = config.hyper
+        if config.new_res > 0:
+            self.param1_freeze_epoch = config.param1_freeze_epoch
+            self.param2_freeze_epoch = config.param2_freeze_epoch
+            if config.parallel == 0:
+                param1_params = list(map(id, self.model.classifier.fc.parameters()))
+            else:
+                param1_params = list(map(id, self.model.module.classifier.fc.parameters()))
+            if config.hyper > 0:
+                if config.parallel == 0:
+                    param2_params = list(map(id, self.model.classifier.fc2.parameters()))
+                else:
+                    param2_params = list(map(id, self.model.module.classifier.fc2.parameters()))
+                param1_params += param2_params
+                other_params = filter(lambda p: id(p) not in param1_params, self.model.parameters())
+                if config.parallel == 0:
+                    self.paras = [{'params': other_params, 'lr': self.lr},
+                                {'params': self.model.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio},
+                                {'params': self.model.classifier.fc2.parameters(), 'lr': self.lr * config.param2_lr_ratio}]
+                else:
+                    self.paras = [{'params': other_params, 'lr': self.lr},
+                                {'params': self.model.module.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio},
+                                {'params': self.model.module.classifier.fc2.parameters(), 'lr': self.lr * config.param2_lr_ratio}]
+            else:
+                other_params = filter(lambda p: id(p) not in param1_params, self.model.parameters())
+                self.paras = [{'params': other_params, 'lr': self.lr},
+                              {'params': self.model.module.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio}]
+            self.optimizer = torch.optim.Adam(self.paras, weight_decay=self.weight_decay)
+        else:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
         #backbone_params = list(map(id, self.model.classifier.parameters()))
         #self.hypernet_params = filter(lambda p: id(p) not in backbone_params, self.model.parameters())
         #self.paras = [{'params': self.hypernet_params, 'lr': self.lr * self.lrratio},
@@ -207,11 +239,15 @@ class solver_IE(object):
         #              ]
         #self.optimizer = torch.optim.Adam(self.paras, weight_decay=self.weight_decay)
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
 
         if config.scheduler == 'cos_warmup':
             self.scheduler = WarmupCosineSchedule(self.optimizer, warmup_steps=math.ceil(batch_step_num * config.warmup_step), t_total=batch_step_num * config.epochs, cycles=0.5)
-
+        elif config.scheduler == 'constant':
+            self.scheduler = ConstantLRSchedule(self.optimizer)
+        elif config.scheduler == 'cosine':
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=10 * batch_step_num, eta_min = 5e-10)
+        
         if config.resume == 1: # resume to the latest epoch
             if self.parallel > 0:
                 checkpoint = torch.load('./model/{}_latest.pth'.format(self.log[:-4]))
@@ -279,11 +315,21 @@ class solver_IE(object):
         device = self.device
 
         for t in range(self.start_epoch, self.epochs):
+            if self.new_res > 0:
+                if t+1 == self.param1_freeze_epoch:
+                    for name, param in self.model.classifier.fc.named_parameters():
+                        param.requires_grad = False
+                if self.hyper > 0:
+                    if t + 1 == self.param2_freeze_epoch:
+                        for name, param in self.model.classifier.fc2.named_parameters():
+                            param.requires_grad = False
             epoch_loss = 0
             epoch_psnr = 0
             epoch_ssim = 0
             epoch_lpips = 0
             i = 0
+            #if t - best_epoch >= 200:
+            #    break
             if self.parallel > 0:
                 self.train_sampler.set_epoch(t)
             start = time.time()
@@ -436,8 +482,7 @@ class solver_IE(object):
                     self.f.write('Best test loss3 %f, PSNR %f SSIM %f LPIPS %f\n' % (best_loss3, best_psnr3, best_ssim3, best_lpips3))
                     path = "./model/{}_latest.pth".format(self.log[:-4])
                     torch.save(save_dict, path)
-            if t - best_epoch >= 150:
-                break
+
 
 
         print('Best test loss %f, PSNR %f SSIM %f' % (best_loss, best_psnr, best_ssim))
