@@ -518,7 +518,7 @@ class DCPNet24(nn.Module):
         elif config.xoffset == -2:
             self.colorTransform = colorTransform5(self.control_point_num, config.offset_param, config)
         elif config.xoffset == 1:
-            self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config)
+            self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config.offset_param2, config)
         elif config.xoffset == 2:
             self.colorTransform = colorTransform_xoffset_softmax(self.control_point_num, config.offset_param, config.offset_param2, config)
         if config.conv_mode == 3:
@@ -2756,7 +2756,7 @@ class colorTransform_multi(nn.Module):
         return out_img_reshaped
     
 class colorTransform_xoffset(nn.Module):
-    def __init__(self, control_point=16, offset_param=0.04, config=0):
+    def __init__(self, control_point=16, offset_param=0.04, offset_param2=0.04, config=0):
         super(colorTransform_xoffset, self).__init__()
         self.w = nn.Parameter(torch.tensor([0.5, 0.5], dtype=torch.float32))
         self.softmax = nn.Softmax(dim=0)
@@ -2768,6 +2768,10 @@ class colorTransform_xoffset(nn.Module):
         self.epsilon = 1e-8
 
         self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
+        if offset_param2 != 0:
+            self.offset_param2 = nn.Parameter(torch.tensor([offset_param2], dtype=torch.float32))
+        else:
+            self.offset_param2 = self.offset_param
 
 
 
@@ -2780,7 +2784,10 @@ class colorTransform_xoffset(nn.Module):
         x_params = params[:,self.control_point*self.feature_num:]
 
         y_params = y_params.reshape(N, self.feature_num, -1) * self.offset_param
-        x_params = x_params.reshape(N, self.feature_num, -1) * self.offset_param
+        if self.offset_param2 != 0:
+            x_params = x_params.reshape(N, self.feature_num, -1) * self.offset_param2
+        else:
+            x_params = x_params.reshape(N, self.feature_num, -1) * self.offset_param
         #params = params.reshape(N, self.feature_num, -1) * self.offset_param
 
         temp1 = torch.zeros(N, self.feature_num, 1).cuda(self.config.rank)
