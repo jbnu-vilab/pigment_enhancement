@@ -161,7 +161,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', dest='dataset', type=str, default='adobe5k',
                         help='Support datasets: adobe5k / LOL')
-    parser.add_argument('--lr', dest='lr', type=float, default=5e-4, help='Learning rate')
+    parser.add_argument('--lr', dest='lr', type=float, default=1e-4, help='Learning rate')
     parser.add_argument('--weight_decay', dest='weight_decay', type=float, default=1e-5, help='Weight decay')
     parser.add_argument('--batch_size', dest='batch_size', type=int, default=8, help='Batch size')
     parser.add_argument('--epochs', dest='epochs', type=int, default=100, help='Epochs for training')
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     parser.add_argument("--res_mode", dest='res_mode', type=int, default=0)
 
     parser.add_argument("--hyper", dest='hyper', type=int, default=0)
-    parser.add_argument("--conv_mode", dest='conv_mode', type=int, default=3)
+    parser.add_argument("--conv_mode", dest='conv_mode', type=int, default=1)
 
     parser.add_argument("--xoffset", dest='xoffset', type=int, default=0)
 
