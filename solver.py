@@ -204,32 +204,35 @@ class solver_IE(object):
         self.new_res = config.new_res
         self.hyper = config.hyper
         if config.new_res > 0:
-            self.param1_freeze_epoch = config.param1_freeze_epoch
-            self.param2_freeze_epoch = config.param2_freeze_epoch
-            if config.parallel == 0:
-                param1_params = list(map(id, self.model.classifier.fc.parameters()))
+            if config.model == 29:
+                self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
             else:
-                param1_params = list(map(id, self.model.module.classifier.fc.parameters()))
-            if config.hyper > 0:
+                self.param1_freeze_epoch = config.param1_freeze_epoch
+                self.param2_freeze_epoch = config.param2_freeze_epoch
                 if config.parallel == 0:
-                    param2_params = list(map(id, self.model.classifier.fc2.parameters()))
+                    param1_params = list(map(id, self.model.classifier.fc.parameters()))
                 else:
-                    param2_params = list(map(id, self.model.module.classifier.fc2.parameters()))
-                param1_params += param2_params
-                other_params = filter(lambda p: id(p) not in param1_params, self.model.parameters())
-                if config.parallel == 0:
-                    self.paras = [{'params': other_params, 'lr': self.lr},
-                                {'params': self.model.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio},
-                                {'params': self.model.classifier.fc2.parameters(), 'lr': self.lr * config.param2_lr_ratio}]
+                    param1_params = list(map(id, self.model.module.classifier.fc.parameters()))
+                if config.hyper > 0:
+                    if config.parallel == 0:
+                        param2_params = list(map(id, self.model.classifier.fc2.parameters()))
+                    else:
+                        param2_params = list(map(id, self.model.module.classifier.fc2.parameters()))
+                    param1_params += param2_params
+                    other_params = filter(lambda p: id(p) not in param1_params, self.model.parameters())
+                    if config.parallel == 0:
+                        self.paras = [{'params': other_params, 'lr': self.lr},
+                                    {'params': self.model.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio},
+                                    {'params': self.model.classifier.fc2.parameters(), 'lr': self.lr * config.param2_lr_ratio}]
+                    else:
+                        self.paras = [{'params': other_params, 'lr': self.lr},
+                                    {'params': self.model.module.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio},
+                                    {'params': self.model.module.classifier.fc2.parameters(), 'lr': self.lr * config.param2_lr_ratio}]
                 else:
+                    other_params = filter(lambda p: id(p) not in param1_params, self.model.parameters())
                     self.paras = [{'params': other_params, 'lr': self.lr},
-                                {'params': self.model.module.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio},
-                                {'params': self.model.module.classifier.fc2.parameters(), 'lr': self.lr * config.param2_lr_ratio}]
-            else:
-                other_params = filter(lambda p: id(p) not in param1_params, self.model.parameters())
-                self.paras = [{'params': other_params, 'lr': self.lr},
-                              {'params': self.model.module.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio}]
-            self.optimizer = torch.optim.Adam(self.paras, weight_decay=self.weight_decay)
+                                {'params': self.model.module.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio}]
+                self.optimizer = torch.optim.Adam(self.paras, weight_decay=self.weight_decay)
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
 
@@ -316,24 +319,25 @@ class solver_IE(object):
         device = self.device
 
         for t in range(self.start_epoch, self.epochs):
-            if self.parallel == 0:
-                if self.new_res > 0:
-                    if t+1 == self.param1_freeze_epoch:
-                        for name, param in self.model.classifier.fc.named_parameters():
-                            param.requires_grad = False
-                    if self.hyper > 0:
-                        if t + 1 == self.param2_freeze_epoch:
-                            for name, param in self.model.classifier.fc2.named_parameters():
+            if self.config.model != 29:
+                if self.parallel == 0:
+                    if self.new_res > 0:
+                        if t+1 == self.param1_freeze_epoch:
+                            for name, param in self.model.classifier.fc.named_parameters():
                                 param.requires_grad = False
-            else:
-                if self.new_res > 0:
-                    if t+1 == self.param1_freeze_epoch:
-                        for name, param in self.model.module.classifier.fc.named_parameters():
-                            param.requires_grad = False
-                    if self.hyper > 0:
-                        if t + 1 == self.param2_freeze_epoch:
-                            for name, param in self.model.module.classifier.fc2.named_parameters():
+                        if self.hyper > 0:
+                            if t + 1 == self.param2_freeze_epoch:
+                                for name, param in self.model.classifier.fc2.named_parameters():
+                                    param.requires_grad = False
+                else:
+                    if self.new_res > 0:
+                        if t+1 == self.param1_freeze_epoch:
+                            for name, param in self.model.module.classifier.fc.named_parameters():
                                 param.requires_grad = False
+                        if self.hyper > 0:
+                            if t + 1 == self.param2_freeze_epoch:
+                                for name, param in self.model.module.classifier.fc2.named_parameters():
+                                    param.requires_grad = False
             epoch_loss = 0
             epoch_psnr = 0
             epoch_ssim = 0

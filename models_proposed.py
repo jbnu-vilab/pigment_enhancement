@@ -518,7 +518,7 @@ class DCPNet24(nn.Module):
         elif config.xoffset == -2:
             self.colorTransform = colorTransform5(self.control_point_num, config.offset_param, config)
         elif config.xoffset == 1:
-            self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config.offset_param2, config)
+            self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config)
         elif config.xoffset == 2:
             self.colorTransform = colorTransform_xoffset_softmax(self.control_point_num, config.offset_param, config.offset_param2, config)
         if config.conv_mode == 3:
@@ -1531,6 +1531,7 @@ class DCPNet29(nn.Module):
 
         self.leaky_relu = nn.LeakyReLU(0.1)
         param_num = (self.control_point_num * self.feature_num) * self.transform_num
+        param_num1 = param_num
         if self.bias == 1:
             param_num += (self.feature_num * self.transform_num)
         if self.quad == 1 or self.quad == 4 or self.quad == 5:
@@ -1539,17 +1540,34 @@ class DCPNet29(nn.Module):
             param_num += (self.feature_num * self.transform_num) * 2
         if self.last_hyper == 1:
             param_num += (3 * self.feature_num)
+        param_xoffset = 0
         if self.xoffset == 1:
+            param_xoffset = ((self.control_point_num - 2) * self.feature_num) * self.transform_num
             param_num += ((self.control_point_num - 2) * self.feature_num) * self.transform_num
-        if self.hyper == 0:    
-            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
+        elif self.xoffset == 2:
+            param_xoffset = ((self.control_point_num - 1) * self.feature_num) * self.transform_num
+            param_num += ((self.control_point_num - 1) * self.feature_num) * self.transform_num
+
+        if self.hyper == 0:
+            if config.new_res == 0:
+                self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num)
+            elif config.new_res == 1:
+                self.classifier = resnet18_224_2(out_dim=param_num, out_dim2=0, out_dim3=param_xoffset, res_size=config.res_size, res_num=config.res_num,
+                                               fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
             if self.hyper_conv == 1:
                 param_num += (3 * self.feature_num)
+                param_num2 = (3 * self.feature_num)
             elif self.hyper_conv == 3:
                 param_num += (3 * self.feature_num) * 9
-            self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num)
+                param_num2 = (3 * self.feature_num) * 9
+            if config.new_res == 0:
+                self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num)
+            elif config.new_res == 1:
+                self.classifier = resnet18_224_2(out_dim=param_num1, out_dim2=param_num2, out_dim3=param_xoffset, res_size=config.res_size, res_num=config.res_num,
+                                                 fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2)
+
 
         self.mid_conv = config.mid_conv
         conv_list = []
@@ -2756,7 +2774,7 @@ class colorTransform_multi(nn.Module):
         return out_img_reshaped
     
 class colorTransform_xoffset(nn.Module):
-    def __init__(self, control_point=16, offset_param=0.04, offset_param2=0.04, config=0):
+    def __init__(self, control_point=16, offset_param=0.04, config=0):
         super(colorTransform_xoffset, self).__init__()
         self.w = nn.Parameter(torch.tensor([0.5, 0.5], dtype=torch.float32))
         self.softmax = nn.Softmax(dim=0)
@@ -2768,10 +2786,6 @@ class colorTransform_xoffset(nn.Module):
         self.epsilon = 1e-8
 
         self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
-        if offset_param2 != 0:
-            self.offset_param2 = nn.Parameter(torch.tensor([offset_param2], dtype=torch.float32))
-        else:
-            self.offset_param2 = self.offset_param
 
 
 
@@ -2784,10 +2798,7 @@ class colorTransform_xoffset(nn.Module):
         x_params = params[:,self.control_point*self.feature_num:]
 
         y_params = y_params.reshape(N, self.feature_num, -1) * self.offset_param
-        if self.offset_param2 != 0:
-            x_params = x_params.reshape(N, self.feature_num, -1) * self.offset_param2
-        else:
-            x_params = x_params.reshape(N, self.feature_num, -1) * self.offset_param
+        x_params = x_params.reshape(N, self.feature_num, -1) * self.offset_param
         #params = params.reshape(N, self.feature_num, -1) * self.offset_param
 
         temp1 = torch.zeros(N, self.feature_num, 1).cuda(self.config.rank)

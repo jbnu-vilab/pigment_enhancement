@@ -236,7 +236,7 @@ if __name__ == '__main__':
     parser.add_argument("--act_mode", dest='act_mode', type=str, default='sigmoid')
     parser.add_argument("--backbone", dest='backbone', type=str, default='res')
 
-    parser.add_argument("--res_num", dest='res_num', type=int, default=18)
+    parser.add_argument("--res_num", dest='res_num', type=int, default=34)
     parser.add_argument("--lrratio", dest='lrratio', type=int, default=1)
 
     #parser.add_argument("--res_size", dest='res_size', type=int, default=224)
