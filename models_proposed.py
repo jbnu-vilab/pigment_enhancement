@@ -457,6 +457,7 @@ class DCPNet24(nn.Module):
         self.leaky_relu = nn.LeakyReLU(0.1)
         param_num = (self.control_point_num * self.feature_num) * self.transform_num
         param_num1 = param_num
+        param_num4 = 0
         if self.bias == 1:
             param_num += (self.feature_num * self.transform_num)
         if self.quad == 1 or self.quad == 4 or self.quad == 5:
@@ -465,6 +466,7 @@ class DCPNet24(nn.Module):
             param_num += (self.feature_num * self.transform_num) * 2
         if self.last_hyper == 1:
             param_num += (3 * self.feature_num)
+            param_num4 += (3 * self.feature_num)
         param_xoffset = 0
         if self.xoffset == 1:
             param_xoffset = ((self.control_point_num - 2) * self.feature_num) * self.transform_num
@@ -477,7 +479,7 @@ class DCPNet24(nn.Module):
             if config.new_res == 0:
                 self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num)
             elif config.new_res == 1:
-                self.classifier = resnet18_224_2(out_dim=param_num, out_dim2=0, out_dim3=param_xoffset, res_size=config.res_size, res_num=config.res_num,
+                self.classifier = resnet18_224_2(out_dim=param_num, out_dim2=0, out_dim3=param_xoffset, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num,
                                                fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
@@ -490,7 +492,7 @@ class DCPNet24(nn.Module):
             if config.new_res == 0:
                 self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num)
             elif config.new_res == 1:
-                self.classifier = resnet18_224_2(out_dim=param_num1, out_dim2=param_num2, out_dim3=param_xoffset, res_size=config.res_size, res_num=config.res_num,
+                self.classifier = resnet18_224_2(out_dim=param_num1, out_dim2=param_num2, out_dim3=param_xoffset, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num,
                                                  fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2)
 
 
@@ -3023,12 +3025,13 @@ class resnet18_224(nn.Module):
 
 class resnet18_224_2(nn.Module):
 
-    def __init__(self, out_dim=5, out_dim2=0, out_dim3=0, res_num=18, res_size=224, aug_test=False, fc_num=1, init_w=0, init_w2=0):
+    def __init__(self, out_dim=5, out_dim2=0, out_dim3=0, out_dim4=0, res_num=18, res_size=224, aug_test=False, fc_num=1, init_w=0, init_w2=0):
         super(resnet18_224_2, self).__init__()
 
         self.aug_test = aug_test
         self.out_dim2 = out_dim2
         self.out_dim3 = out_dim3
+        self.out_dim4 = out_dim4
         if res_num == 18:
             net = models.resnet18(pretrained=True)
         elif res_num == 34:
@@ -3077,6 +3080,14 @@ class resnet18_224_2(nn.Module):
                 if init_w2 == 2:
                     torch.nn.init.constant_(self.fc3.weight.data, 0)
                     torch.nn.init.constant_(self.fc3.bias.data, 0)
+            if out_dim4 > 0:
+                lists = []
+                lists += [nn.Linear(512, 1024),
+                          # nn.BatchNorm2d(1024),
+                          nn.ReLU(),
+                          nn.Linear(1024, out_dim4)]
+                self.fc4 = nn.Sequential(*lists)
+                initialize_weights_part(self.fc4)
 
             if init_w > 0:
                 initialize_weights_part(net.fc)
@@ -3103,5 +3114,7 @@ class resnet18_224_2(nn.Module):
         if self.out_dim3 > 0:
             f3 = self.fc3(f)
             f1 = torch.cat((f1, f3), dim=1)
-
+        if self.out_dim4 > 0:
+            f4 = self.fc4(f)
+            f1 = torch.cat((f1, f4), dim=1)
         return f1
