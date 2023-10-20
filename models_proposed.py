@@ -3241,7 +3241,41 @@ class resnet18_224_2(nn.Module):
         else:
             self.upsample = nn.Upsample(size=(res_size, res_size), mode='bilinear')
         if res_num == 50 or res_num == 101:
-            net.fc = nn.Linear(2048, out_dim)
+            net.fc = nn.Identity()
+            lists = []
+            lists += [nn.Linear(2048, 1024),
+                      # nn.BatchNorm2d(1024),
+                      nn.ReLU(),
+                      nn.Linear(1024, out_dim)]
+            self.fc = nn.Sequential(*lists)
+            if init_w == -1:
+                torch.nn.init.constant_(self.fc[2].weight.data, 0)
+                torch.nn.init.constant_(self.fc[2].bias.data, 0)
+
+            if out_dim2 > 0:
+                lists = []
+                lists += [nn.Linear(2048, 1024),
+                          # nn.BatchNorm2d(1024),
+                          nn.ReLU(),
+                          nn.Linear(1024, out_dim2)]
+                self.fc2 = nn.Sequential(*lists)
+            if out_dim3 > 0:
+                self.fc3 = nn.Linear(2048, out_dim3)
+                if init_w2 == 1:
+                    torch.nn.init.constant_(self.fc3.weight.data, 0)
+                    torch.nn.init.constant_(self.fc3.bias.data, 1)
+                if init_w2 == 2:
+                    torch.nn.init.constant_(self.fc3.weight.data, 0)
+                    torch.nn.init.constant_(self.fc3.bias.data, 0)
+            if out_dim4 > 0:
+                lists = []
+                lists += [nn.Linear(2048, 1024),
+                          # nn.BatchNorm2d(1024),
+                          nn.ReLU(),
+                          nn.Linear(1024, out_dim4)]
+                self.fc4 = nn.Sequential(*lists)
+                initialize_weights_part(self.fc4)
+
             if init_w > 0:
                 initialize_weights_part(net.fc)
 
