@@ -28,8 +28,11 @@ class RandomCropWithRandomSize2(object):
     def __call__(self, sample):
         image = sample
         _, h, w = image.shape
-        n_h = random.randint(h // 2, h)
-        n_w = random.randint(w // 2, w)
+        #n_h = random.randint(h // 2, h)
+        #n_w = random.randint(w // 2, w)
+
+        n_h = random.randint(round(0.6*h), h)
+        n_w = random.randint(round(0.6*w), w)
         #x = tf.image.random_crop(x, [h, w, 6])
         transforms = torchvision.transforms.RandomCrop((n_h, n_w))
         image = transforms(image)
@@ -152,7 +155,8 @@ class DataLoader(object):
             if istrain:
                 transforms = torchvision.transforms.Compose([
                     RandomCropWithRandomSize2(256, 512), # range [h/2,h] [w/2,w]
-                    torchvision.transforms.Resize((256, 256)),
+                    #torchvision.transforms.Resize((256, 256)),
+                    torchvision.transforms.Resize((config.loader_size, config.loader_size)),
                     torchvision.transforms.RandomHorizontalFlip(),
                     torchvision.transforms.RandomVerticalFlip(),
                     RandomRotate90(),
@@ -164,7 +168,7 @@ class DataLoader(object):
             else:
                 transforms = torchvision.transforms.Compose([
                     norm2_1(config.norm),
-                    resize_with_4(),
+                    #resize_with_4(),
                     generate_color_map()
                 ])
         if (dataset == 'euvp'):
@@ -172,7 +176,7 @@ class DataLoader(object):
             if istrain:
                 transforms = torchvision.transforms.Compose([
                     #RandomCropWithRandomSize2(256, 512), # range [h/2,h] [w/2,w]
-                    torchvision.transforms.Resize((256, 256)),
+                    torchvision.transforms.Resize((config.loader_size, config.loader_size)),
                     torchvision.transforms.RandomHorizontalFlip(),
                     torchvision.transforms.RandomVerticalFlip(),
                     RandomRotate90(),
