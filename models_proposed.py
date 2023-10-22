@@ -2995,7 +2995,7 @@ class colorTransform_xoffset(nn.Module):
         x_params = params[:,self.control_point*self.feature_num:]
 
         y_params = y_params.reshape(N, self.feature_num, -1) * self.offset_param
-        x_params = x_params.reshape(N, self.feature_num, -1) * self.offset_param
+        x_params = x_params.reshape(N, self.feature_num, -1) * self.offset_param2
         #params = params.reshape(N, self.feature_num, -1) * self.offset_param
 
         temp1 = torch.zeros(N, self.feature_num, 1).cuda(self.config.rank)
