@@ -453,6 +453,8 @@ class DCPNet24(nn.Module):
         self.bias = config.bias
         self.quad = config.quad
         self.trans_param = config.trans_param
+        if config.learnable_trans_param == 1:
+            self.trans_param = nn.Parameter(torch.tensor([config.trans_param], dtype=torch.float32))
 
         self.leaky_relu = nn.LeakyReLU(0.1)
         param_num = (self.control_point_num * self.feature_num) * self.transform_num
@@ -1223,6 +1225,8 @@ class DCPNet27(nn.Module):
         self.bias = config.bias
         self.quad = config.quad
         self.trans_param = config.trans_param
+        if config.learnable_trans_param == 1:
+            self.trans_param = nn.Parameter(torch.tensor([config.trans_param], dtype=torch.float32))
 
         self.softmax = config.softmax
         self.num_weight = config.num_weight

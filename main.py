@@ -284,6 +284,8 @@ if __name__ == '__main__':
     parser.add_argument("--new_res", dest='new_res', type=int, default=0)
     parser.add_argument("--trans_param", dest='trans_param', type=float, default=1.0)
 
+    parser.add_argument("--learnable_trans_param", dest='learnable_trans_param', type=int, default=0)
+
     parser.add_argument("--param1_lr_ratio", dest='param1_lr_ratio', type=float, default=1.0)
     parser.add_argument("--param2_lr_ratio", dest='param2_lr_ratio', type=float, default=1.0)
     parser.add_argument("--param1_freeze_epoch", dest='param1_freeze_epoch', type=int, default=0)
