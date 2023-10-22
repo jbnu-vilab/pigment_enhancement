@@ -520,7 +520,7 @@ class DCPNet24(nn.Module):
         elif config.xoffset == -2:
             self.colorTransform = colorTransform5(self.control_point_num, config.offset_param, config)
         elif config.xoffset == 1:
-            self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config)
+            self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config.offset_param2, config)
         elif config.xoffset == 2:
             self.colorTransform = colorTransform_xoffset_softmax(self.control_point_num, config.offset_param, config.offset_param2, config)
         if config.conv_mode == 3:
@@ -2968,7 +2968,7 @@ class colorTransform_multi(nn.Module):
         return out_img_reshaped
     
 class colorTransform_xoffset(nn.Module):
-    def __init__(self, control_point=16, offset_param=0.04, config=0):
+    def __init__(self, control_point=16, offset_param=0.04, offset_param2=0.1, config=0):
         super(colorTransform_xoffset, self).__init__()
         self.w = nn.Parameter(torch.tensor([0.5, 0.5], dtype=torch.float32))
         self.softmax = nn.Softmax(dim=0)
@@ -2980,7 +2980,10 @@ class colorTransform_xoffset(nn.Module):
         self.epsilon = 1e-8
 
         self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
-
+        if offset_param2 == 0:
+            self.offset_param2 = self.offset_param
+        else:
+            self.offset_param2 = nn.Parameter(torch.tensor([offset_param2], dtype=torch.float32))
 
 
     def forward(self, org_img, params, color_mapping_global_a, color_map_control):
@@ -3064,7 +3067,10 @@ class colorTransform_xoffset_softmax(nn.Module):
         self.epsilon = 1e-8
 
         self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
-        self.offset_param2 = nn.Parameter(torch.tensor([offset_param2], dtype=torch.float32))
+        if offset_param2 == 0:
+            self.offset_param2 = self.offset_param
+        else:
+            self.offset_param2 = nn.Parameter(torch.tensor([offset_param2], dtype=torch.float32))
 
     def forward(self, org_img, params, color_mapping_global_a, color_map_control):
         N, C, H, W = org_img.shape
