@@ -482,7 +482,7 @@ class DCPNet24(nn.Module):
                 self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num)
             elif config.new_res == 1:
                 self.classifier = resnet18_224_2(out_dim=param_num, out_dim2=0, out_dim3=param_xoffset, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num,
-                                               fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2)
+                                               fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
             if self.hyper_conv == 1:
@@ -495,7 +495,7 @@ class DCPNet24(nn.Module):
                 self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num)
             elif config.new_res == 1:
                 self.classifier = resnet18_224_2(out_dim=param_num1, out_dim2=param_num2, out_dim3=param_xoffset, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num,
-                                                 fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2)
+                                                 fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last)
 
 
         self.mid_conv = config.mid_conv
@@ -528,7 +528,15 @@ class DCPNet24(nn.Module):
         if config.conv_mode == 3:
             self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda(config.rank)
         elif config.conv_mode == 1:
-            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0).cuda(config.rank)
+            if config.last_conv_bias == 1:
+                bias_flag = True
+            else:
+                bias_flag = False
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0, bias=bias_flag).cuda(config.rank)
+            if config.last_conv_init == 1:
+                torch.nn.init.constant_(self.conv_out.weight.data, 1.0 / self.feature_num)
+                if bias_flag:
+                    torch.nn.init.constant_(self.conv_out.bias.data, 0)
 
         self.act = 'relu'
         self.pixelwise_multi = config.pixelwise_multi
@@ -3227,7 +3235,7 @@ class resnet18_224(nn.Module):
 
 class resnet18_224_2(nn.Module):
 
-    def __init__(self, out_dim=5, out_dim2=0, out_dim3=0, out_dim4=0, res_num=18, res_size=224, aug_test=False, fc_num=1, init_w=0, init_w2=0):
+    def __init__(self, out_dim=5, out_dim2=0, out_dim3=0, out_dim4=0, res_num=18, res_size=224, aug_test=False, fc_num=1, init_w=0, init_w2=0, init_w_last=0):
         super(resnet18_224_2, self).__init__()
 
         self.aug_test = aug_test
@@ -3284,7 +3292,11 @@ class resnet18_224_2(nn.Module):
                           nn.ReLU(),
                           nn.Linear(1024, out_dim4)]
                 self.fc4 = nn.Sequential(*lists)
-                initialize_weights_part(self.fc4)
+                if init_w_last == 0:
+                    initialize_weights_part(self.fc4)
+                elif init_w_last == 1:
+                    torch.nn.init.constant_(self.fc4.weight.data, 0)
+                    torch.nn.init.constant_(self.fc4.bias.data, 1.0/64.0)
 
             if init_w > 0:
                 initialize_weights_part(net.fc)
@@ -3323,7 +3335,11 @@ class resnet18_224_2(nn.Module):
                           nn.ReLU(),
                           nn.Linear(1024, out_dim4)]
                 self.fc4 = nn.Sequential(*lists)
-                initialize_weights_part(self.fc4)
+                if init_w_last == 0:
+                    initialize_weights_part(self.fc4)
+                elif init_w_last == 1:
+                    torch.nn.init.constant_(self.fc4[2].weight.data, 0)
+                    torch.nn.init.constant_(self.fc4[2].bias.data, 1.0 / 64.0)
 
             if init_w > 0:
                 initialize_weights_part(net.fc)

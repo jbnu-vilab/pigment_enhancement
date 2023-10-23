@@ -282,7 +282,7 @@ if __name__ == '__main__':
     parser.add_argument("--model_loss_type", dest='model_loss_type', type=int, default=1)
     parser.add_argument("--init_w", dest='init_w', type=int, default=0)
     parser.add_argument("--new_res", dest='new_res', type=int, default=0)
-    parser.add_argument("--trans_param", dest='trans_param', type=float, default=1.0)
+    parser.add_argument("--trans_param", dest='trans_param', type=float, default=5.0)
 
     parser.add_argument("--learnable_trans_param", dest='learnable_trans_param', type=int, default=0)
 
@@ -291,6 +291,9 @@ if __name__ == '__main__':
     parser.add_argument("--param1_freeze_epoch", dest='param1_freeze_epoch', type=int, default=0)
     parser.add_argument("--param2_freeze_epoch", dest='param2_freeze_epoch', type=int, default=0)
     parser.add_argument("--init_w2", dest='init_w2', type=int, default=0)
+    parser.add_argument("--last_conv_init", dest='last_conv_init', type=int, default=0)
+    parser.add_argument("--last_conv_bias", dest='last_conv_bias', type=int, default=1)
+    parser.add_argument("--init_w_last", dest='init_w_last', type=int, default=0)
     #parser.add_argument("--dist_url", dest='dist_url', type=str, default="tcp://127.0.0.1:23456")
     
     config = parser.parse_args()
