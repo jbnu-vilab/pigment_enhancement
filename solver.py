@@ -539,7 +539,7 @@ class solver_IE(object):
                 sys.stdout.write('\rTest {}/{} '.format(n, data.__len__()))
                 self.f.write('Test {}/{}\n'.format(n, data.__len__()))
 
-            if self.modeln == 30or self.modeln == 31:
+            if self.modeln == 30 or self.modeln == 31:
                 pred, params = self.model(img, index, color_position)
             else:
                 pred = self.model(img, index, color_position)
