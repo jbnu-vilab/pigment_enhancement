@@ -68,6 +68,14 @@ class PSNR(nn.Module):
         return psnr
 
 
+def calculate_delta_lab(outputs, targets):
+    outputs_lab = kornia.color.rgb_to_lab(outputs)
+    targets_lab = kornia.color.rgb_to_lab(targets)
+
+    diff = (outputs_lab - targets_lab) ** 2
+
+    delta_e = torch.mean(torch.sqrt(torch.sum(diff, dim=1, keepdim=False)))
+    return delta_e
 
 def structural_similarity(outputs, targets):
     outputs = torch.clamp(outputs, 0, 1)
@@ -267,6 +275,10 @@ class solver_IE(object):
             self.best_ssim = checkpoint["best_ssim"]
             self.best_lpips = checkpoint["best_lpips"]
             self.best_epoch = checkpoint["best_epoch"]
+            if 'best_delta_lab' in checkpoint.keys():
+                self.best_delta_lab = checkpoint["best_delta_lab"]
+            else:
+                self.best_delta_lab = 100
             print(self.start_epoch, self.best_psnr, self.best_loss, self.best_ssim, self.best_lpips)
         elif config.resume == 2: # resume to the best epoch
             if self.parallel > 0:
@@ -283,6 +295,10 @@ class solver_IE(object):
             self.best_ssim = checkpoint["best_ssim"]
             self.best_lpips = checkpoint["best_lpips"]
             self.best_epoch = checkpoint["best_epoch"]
+            if 'best_delta_lab' in checkpoint.keys():
+                self.best_delta_lab = checkpoint["best_delta_lab"]
+            else:
+                self.best_delta_lab = 100
 
         else:
             self.start_epoch = 0
@@ -290,6 +306,7 @@ class solver_IE(object):
             self.best_loss = 100
             self.best_ssim = 0
             self.best_lpips = 100
+            self.best_delta_lab = 100
 
             self.best_epoch = 0
 
@@ -304,16 +321,19 @@ class solver_IE(object):
         best_loss = self.best_loss
         best_ssim = self.best_ssim
         best_lpips = self.best_lpips
+        best_delta_lab = self.best_delta_lab
 
         best_psnr2 = self.best_psnr
         best_loss2 = self.best_loss
         best_ssim2 = self.best_ssim
         best_lpips2 = self.best_lpips
+        best_delta_lab2 = self.best_delta_lab
 
         best_psnr3 = self.best_psnr
         best_loss3 = self.best_loss
         best_ssim3 = self.best_ssim
         best_lpips3 = self.best_lpips
+        best_delta_lab3 = self.best_delta_lab
 
         best_epoch = self.best_epoch
         device = self.device
@@ -342,6 +362,7 @@ class solver_IE(object):
             epoch_psnr = 0
             epoch_ssim = 0
             epoch_lpips = 0
+            epoch_delta_lab = 0
             i = 0
             #if t - best_epoch >= 200:
             #    break
@@ -417,6 +438,8 @@ class solver_IE(object):
 
                     ssim = structural_similarity(pred, label)
 
+                    delta_lab = calculate_delta_lab(pred, label)
+
                     pred_lpips = pred.detach() * 2.0 - 1.0
                     label_lpips = label.detach() * 2.0 - 1.0
                     lpips = torch.mean(self.lpips_fn(pred_lpips, label_lpips).squeeze())
@@ -424,6 +447,7 @@ class solver_IE(object):
                     epoch_psnr = epoch_psnr + psnr.detach().cpu().numpy()
                     epoch_ssim = epoch_ssim + ssim.detach().cpu().numpy()
                     epoch_lpips = epoch_lpips + lpips.detach().cpu().numpy()
+                    epoch_delta_lab = epoch_delta_lab + delta_lab.detach().cpu().numpy()
 
                     if i % 20 == 1:
                         sys.stdout.write('\rEpoch {}: {}/{}, loss: {}'.format(t + 1, i, self.train_data.__len__(), loss))
@@ -436,8 +460,9 @@ class solver_IE(object):
             epoch_psnr = epoch_psnr / i
             epoch_ssim = epoch_ssim / i
             epoch_lpips = epoch_lpips / i
-            print('train loss %f, PSNR %f SSIM %f LPIPS %f' % (epoch_loss, epoch_psnr, epoch_ssim, epoch_lpips))
-            self.f.write('train loss %f, PSNR %f SSIM %f LPIPS %f\n' % (epoch_loss, epoch_psnr, epoch_ssim, epoch_lpips))
+            epoch_delta_lab = epoch_delta_lab / i
+            print('train loss %f, PSNR %f SSIM %f LPIPS %f Delta_LAB %f' % (epoch_loss, epoch_psnr, epoch_ssim, epoch_lpips, epoch_delta_lab))
+            self.f.write('train loss %f, PSNR %f SSIM %f LPIPS %f Delta_LAB %f\n' % (epoch_loss, epoch_psnr, epoch_ssim, epoch_lpips, epoch_delta_lab))
             if (t+1) % self.test_step == 0:
                 with torch.no_grad():
                     if self.parallel == 1:
@@ -445,15 +470,16 @@ class solver_IE(object):
                         if self.config.rank != 0:
                             continue
                         #print("rank: {}\n".format(self.config.rank))
-                    test_loss, test_psnr, test_ssim, test_lpips = self.test(self.test_data)
-                    print('test loss %f, PSNR %f SSIM %f LPIPS %f' % (test_loss, test_psnr, test_ssim, test_lpips))
-                    self.f.write('test loss %f, PSNR %f SSIM %f LPIPS %f\n' % (test_loss, test_psnr, test_ssim, test_lpips))
+                    test_loss, test_psnr, test_ssim, test_lpips, test_delta_lab = self.test(self.test_data)
+                    print('test loss %f, PSNR %f SSIM %f LPIPS %f Delta_LAB %f' % (test_loss, test_psnr, test_ssim, test_lpips, test_delta_lab))
+                    self.f.write('test loss %f, PSNR %f SSIM %f LPIPS %f Delta_LAB %f\n' % (test_loss, test_psnr, test_ssim, test_lpips, test_delta_lab))
 
                     if best_psnr < test_psnr:
                         best_psnr = test_psnr
                         best_loss = test_loss
                         best_ssim = test_ssim
                         best_lpips = test_lpips
+                        best_delta_lab = test_delta_lab
                         best_epoch = t
 
                     if best_ssim2 < test_ssim:
@@ -461,12 +487,14 @@ class solver_IE(object):
                         best_loss2 = test_loss
                         best_ssim2 = test_ssim
                         best_lpips2 = test_lpips
+                        best_delta_lab2 = test_delta_lab
 
-                    if best_lpips3 > test_lpips:
+                    if best_delta_lab3 > test_delta_lab:
                         best_psnr3 = test_psnr
                         best_loss3 = test_loss
                         best_ssim3 = test_ssim
                         best_lpips3 = test_lpips
+                        best_delta_lab3 = test_delta_lab
 
 
 
@@ -477,6 +505,7 @@ class solver_IE(object):
                         "best_loss": best_loss,
                         "best_lpips": best_lpips,
                         "best_epoch": best_epoch,
+                        "best_delta_lab": best_delta_lab,
                         "model": self.model.state_dict(),
                         "optimizer": self.optimizer.state_dict(),
                     }
@@ -487,14 +516,14 @@ class solver_IE(object):
                         torch.save(save_dict, path)
 
 
-                    print('Best test loss %f, PSNR %f SSIM %f LPIPS %f' % (best_loss, best_psnr, best_ssim, best_lpips))
-                    self.f.write('Best test loss %f, PSNR %f SSIM %f LPIPS %f\n' % (best_loss, best_psnr, best_ssim, best_lpips))
+                    print('Best test loss %f, PSNR %f SSIM %f LPIPS %f Delta_LAB %f' % (best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab))
+                    self.f.write('Best test loss %f, PSNR %f SSIM %f LPIPS %f Delta_LAB %f\n' % (best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab))
 
-                    print('Best test loss2 %f, PSNR %f SSIM %f LPIPS %f' % (best_loss2, best_psnr2, best_ssim2, best_lpips2))
-                    self.f.write('Best test loss2 %f, PSNR %f SSIM %f LPIPS %f\n' % (best_loss2, best_psnr2, best_ssim2, best_lpips2))
+                    print('Best test loss2 %f, PSNR %f SSIM %f LPIPS %f Delta_LAB %f' % (best_loss2, best_psnr2, best_ssim2, best_lpips2, best_delta_lab2))
+                    self.f.write('Best test loss2 %f, PSNR %f SSIM %f LPIPS %f Delta_LAB %f\n' % (best_loss2, best_psnr2, best_ssim2, best_lpips2, best_delta_lab2))
 
-                    print('Best test loss3 %f, PSNR %f SSIM %f LPIPS %f' % (best_loss3, best_psnr3, best_ssim3, best_lpips3))
-                    self.f.write('Best test loss3 %f, PSNR %f SSIM %f LPIPS %f\n' % (best_loss3, best_psnr3, best_ssim3, best_lpips3))
+                    print('Best test loss3 %f, PSNR %f SSIM %f LPIPS %f Delta_LAB %f' % (best_loss3, best_psnr3, best_ssim3, best_lpips3, best_delta_lab3))
+                    self.f.write('Best test loss3 %f, PSNR %f SSIM %f LPIPS %f Delta_LAB %f\n' % (best_loss3, best_psnr3, best_ssim3, best_lpips3, best_delta_lab3))
                     path = "./model/{}_latest.pth".format(self.log[:-4])
                     torch.save(save_dict, path)
 
@@ -515,6 +544,7 @@ class solver_IE(object):
         epoch_psnr = 0
         epoch_ssim = 0
         epoch_lpips = 0
+        epoch_delta_lab = 0
         n = 0
         if self.saveimg != 0:
             img_path = "./model/{}".format(self.log[:-4])
@@ -568,6 +598,9 @@ class solver_IE(object):
 
             epoch_lpips = epoch_lpips + lpips.detach().cpu().numpy()
 
+            delta_lab = calculate_delta_lab(pred, label)
+            epoch_delta_lab = epoch_delta_lab + delta_lab.detach().cpu().numpy()
+
             #save_img
             if self.saveimg != 0:
                 img_path2 = "{}/{:04d}.png".format(img_path, img_idx[0])
@@ -578,6 +611,7 @@ class solver_IE(object):
         epoch_psnr = epoch_psnr / n
         epoch_ssim = epoch_ssim / n
         epoch_lpips = epoch_lpips / n
+        epoch_delta_lab = epoch_delta_lab / n
         
         self.model.train(True)
-        return epoch_loss, epoch_psnr, epoch_ssim, epoch_lpips
+        return epoch_loss, epoch_psnr, epoch_ssim, epoch_lpips, epoch_delta_lab
