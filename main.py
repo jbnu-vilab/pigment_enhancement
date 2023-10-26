@@ -138,9 +138,9 @@ def main(config):
         print('Training and testing on %s dataset...' % (config.dataset))
         config.f.write('Training and testing on %s dataset...' % (config.dataset))
         solver = solver_IE(config, folder_path[config.dataset])
-        best_loss, best_psnr, best_ssim, best_lpips = solver.test(solver.test_data)
-        print("loss: {}, psnr: {}, ssim: {}, lpips: {}".format(best_loss, best_psnr, best_ssim, best_lpips))
-        config.f.write("loss: {}, psnr: {}, ssim: {}, lpips: {}".format(best_loss, best_psnr, best_ssim, best_lpips))
+        best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab = solver.test(solver.test_data)
+        print("loss: {}, psnr: {}, ssim: {}, lpips: {}, delta_lab: {}".format(best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab))
+        config.f.write("loss: {}, psnr: {}, ssim: {}, lpips: {}, delta_lab: {}".format(best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab))
         #if config.parallel == 1:
         #    print("rank: {}\n".format(config.rank))
         #    if config.rank == 0:
