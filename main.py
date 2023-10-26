@@ -250,7 +250,7 @@ if __name__ == '__main__':
     parser.add_argument("--hyper2", dest='hyper2', type=int, default=1)
     parser.add_argument("--last_hyper", dest='last_hyper', type=int, default=0)
 
-    parser.add_argument("--mid_conv", dest='mid_conv', type=int, default=0)
+    parser.add_argument("--mid_conv", dest='mid_conv', type=int, default=2)
     parser.add_argument("--mid_conv_size", dest='mid_conv_size', type=int, default=1)
 
     parser.add_argument("--hyper_conv", dest='hyper_conv', type=int, default=1)
