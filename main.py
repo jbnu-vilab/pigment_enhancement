@@ -264,7 +264,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--local_residual", dest='local_residual', type=int, default=0)
 
-    parser.add_argument("--div", dest='div', type=int, default=4)
+    parser.add_argument("--div", dest='div', type=int, default=1)
 
     parser.add_argument("--bias", dest='bias', type=int, default=0)
     parser.add_argument("--pixelwise_multi", dest='pixelwise_multi', type=int, default=0)

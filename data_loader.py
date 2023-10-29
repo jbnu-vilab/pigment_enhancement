@@ -89,6 +89,27 @@ class resize_with_16(object):
             nW = (w // 16) * 16
             image = F.resize(image, (nH, nW))
         return image
+
+
+
+class resize_with_div(object):
+    def __init__(self, div):
+        self.div = div
+    def __call__(self, sample):
+        if self.div == 1:
+            return sample
+        else:
+            image = sample
+            _, h, w = image.shape
+
+            if (h % self.div) or (w % self.div):
+                nH = (h // self.div) * self.div
+                nW = (w // self.div) * self.div
+                image = F.resize(image, (nH, nW))
+            return image
+
+
+
 class generate_index_image(object):
     def __call__(self, image):
         c,h,w = image.shape
@@ -168,7 +189,7 @@ class DataLoader(object):
             else:
                 transforms = torchvision.transforms.Compose([
                     norm2_1(config.norm),
-                    #resize_with_4(),
+                    resize_with_div(config.div),
                     generate_color_map()
                 ])
         if (dataset == 'euvp'):
