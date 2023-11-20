@@ -12,7 +12,7 @@ import torchvision.transforms.functional as TF
 import torchvision_x_functional as TF_x
 
 class ImageDataset_paper(Dataset):
-    def __init__(self, root, mode="train", use_mask=False, retoucher = 'A', loader_size=448, div=4):
+    def __init__(self, root, mode="train", use_mask=False, retoucher = 'A', loader_size=448, div=1):
         self.mode = mode
         self.root = root
         self.use_mask = use_mask
@@ -109,10 +109,11 @@ class ImageDataset_paper(Dataset):
         
         
 class ImageDataset_paper2(Dataset):
-    def __init__(self, root, mode="train", use_mask=False):
+    def __init__(self, root, mode="train", use_mask=False, loader_size=448):
         self.mode = mode
         self.root = root
         self.use_mask = use_mask
+        self.loader_size = loader_size
         #print('training with target_' + self.retoucher)
         self.train_input_files = sorted(glob.glob(os.path.join(root, "train/input" + "/*.jpg")))
         self.train_target_files = sorted(glob.glob(os.path.join(root, "train/user-c" + "/*.jpg")))
@@ -157,6 +158,8 @@ class ImageDataset_paper2(Dataset):
 
         img_input = img_input[:, :, [2, 1, 0]]
 
+
+        
         if self.mode == "train":
 
             ratio_H = np.random.uniform(0.6, 1.0)
@@ -165,10 +168,10 @@ class ImageDataset_paper2(Dataset):
             crop_h = round(H * ratio_H)
             crop_w = round(W * ratio_W)
             i, j, h, w = transforms.RandomCrop.get_params(img_exptC, output_size=(crop_h, crop_w))
-            img_input = TF_x.resized_crop(img_input, i, j, h, w, (448, 448))
-            img_exptC = TF.resized_crop(img_exptC, i, j, h, w, (448, 448))
+            img_input = TF_x.resized_crop(img_input, i, j, h, w, (self.loader_size, self.loader_size))
+            img_exptC = TF.resized_crop(img_exptC, i, j, h, w, (self.loader_size, self.loader_size))
             if self.use_mask:
-                img_mask = TF.resized_crop(img_mask, i, j, h, w, (448, 448))
+                img_mask = TF.resized_crop(img_mask, i, j, h, w, (self.loader_size, self.loader_size))
 
             if np.random.random() > 0.5:
                 img_input = TF_x.hflip(img_input)
