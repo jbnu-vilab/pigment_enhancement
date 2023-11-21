@@ -296,6 +296,8 @@ if __name__ == '__main__':
     parser.add_argument("--init_w_last", dest='init_w_last', type=int, default=0)
     #parser.add_argument("--dist_url", dest='dist_url', type=str, default="tcp://127.0.0.1:23456")
     
+    parser.add_argument("--antialias", dest='antialias', type=int, default=0)
+    
     config = parser.parse_args()
     num_device = torch.cuda.device_count()
     if num_device > 1:

@@ -376,11 +376,18 @@ class solver_IE(object):
                 color_position = torch.tensor(temp)
                 color_position = color_position.unsqueeze(0).unsqueeze(1)
                 color_position = color_position.repeat(N, self.config.feature_num, 1)
-                color_position = torch.tensor(color_position.cuda(device))
+                
+                #color_position = torch.tensor(color_position.cuda(device))
 
-                img = torch.tensor(img.cuda(device))
-                index = torch.tensor(index.cuda(device))
-                label = torch.tensor(label.cuda(device))
+                #img = torch.tensor(img.cuda(device))
+                #index = torch.tensor(index.cuda(device))
+                #label = torch.tensor(label.cuda(device))
+                
+                color_position = color_position.cuda(device)
+
+                img = img.cuda(device)
+                index = index.cuda(device)
+                label = label.cuda(device)
                 self.optimizer.zero_grad()
 
                 

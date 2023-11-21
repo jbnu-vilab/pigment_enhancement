@@ -171,13 +171,19 @@ class DataLoader(object):
         self.batch_size = batch_size
         self.istrain = istrain
         self.config = config
+        if config.antialias == 0:
+            antialias = None
+        elif config.antialias == 1:
+            antialias = True
+        elif config.antialias == 2:
+            antialias = False
         if (dataset == 'adobe5k' or dataset == 'LOL' or dataset == 'uieb' or dataset == 'hdr'):
              # Train transforms
             if istrain:
                 transforms = torchvision.transforms.Compose([
                     RandomCropWithRandomSize2(256, 512), # range [h/2,h] [w/2,w]
                     #torchvision.transforms.Resize((256, 256)),
-                    torchvision.transforms.Resize((config.loader_size, config.loader_size)),
+                    torchvision.transforms.Resize((config.loader_size, config.loader_size),antialias=antialias),
                     torchvision.transforms.RandomHorizontalFlip(),
                     torchvision.transforms.RandomVerticalFlip(),
                     RandomRotate90(),
