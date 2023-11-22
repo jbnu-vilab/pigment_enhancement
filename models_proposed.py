@@ -900,6 +900,148 @@ class DCPNet24(nn.Module):
         return out_img
 
 
+class DCPNet240(nn.Module):
+    def __init__(self, config):
+        super(DCPNet240, self).__init__()
+
+        self.control_point_num = config.control_point + 2
+        self.feature_num = config.feature_num
+        
+        self.hyper = config.hyper
+        self.conv_num = config.conv_num
+        self.last_hyper = config.last_hyper
+
+        self.hyper_conv = config.hyper_conv
+
+        self.trans_param = config.trans_param
+
+        param_num = self.control_point_num * self.feature_num
+        param_num1 = param_num
+        param_num4 = 0
+
+        if self.last_hyper == 1:
+            param_num += (3 * self.feature_num)
+            param_num4 += (3 * self.feature_num)
+
+        if self.hyper == 0:
+            if config.new_res == 0:
+                self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num)
+            elif config.new_res == 1:
+                self.classifier = resnet18_224_2(out_dim=param_num, out_dim2=0, out_dim3=0, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num,
+                                               fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last)
+            self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
+        elif self.hyper == 1:
+            if self.hyper_conv == 1:
+                param_num += (3 * self.feature_num)
+                param_num2 = (3 * self.feature_num)
+            elif self.hyper_conv == 3:
+                param_num += (3 * self.feature_num) * 9
+                param_num2 = (3 * self.feature_num) * 9
+            self.classifier = resnet18_224_2(out_dim=param_num1, out_dim2=param_num2, out_dim3=0, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last)
+
+
+        self.mid_conv = config.mid_conv
+        conv_list = []
+        for i in range(0, self.mid_conv):
+            if config.mid_conv_mode == 'res':
+                if config.mid_conv_size == 3:
+                    conv_list.append(resBlock2(self.feature_num, self.feature_num, ksize=3, stride=1, pad=1, extra_conv=False, act='relu'))
+                else:
+                    conv_list.append(resBlock2(self.feature_num, self.feature_num, ksize=1, stride=1, pad=0, extra_conv=False, act='relu'))
+            elif config.mid_conv_mode == 'res2':
+                    conv_list.append(resBlock3(self.feature_num, self.feature_num, ksize=3, stride=1, pad=1, extra_conv=False, act='relu'))
+            else:
+                if config.mid_conv_size == 3:
+                    conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=3, stride=1, pad=1, extra_conv=False, act='relu'))
+                else:
+                    conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=1, stride=1, pad=0, extra_conv=False, act='relu'))
+        if self.mid_conv > 0:
+            self.mid_conv_module = nn.Sequential(*conv_list)
+        self.colorTransform = colorTransform3(self.control_point_num, config.offset_param, config)
+
+        if config.conv_mode == 3:
+            self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda(config.rank)
+        elif config.conv_mode == 1:
+            if config.last_conv_bias == 1:
+                bias_flag = True
+            else:
+                bias_flag = False
+            if config.last_hyper == 0:
+                self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0, bias=bias_flag).cuda(config.rank)
+
+        self.sigmoid = nn.Sigmoid()
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+
+    def forward(self, org_img, index_image, color_map_control):
+        N, C, H, W = org_img.shape
+        self.cls_output = self.classifier(org_img)
+        if self.hyper == 0:
+            norm_params = self.sigmoid(self.trans_param * self.params)
+            epsilon = 1e-10
+            w_sum = torch.sum(torch.abs(norm_params), dim=1, keepdim=True)
+            norm_params = norm_params / (w_sum + epsilon)
+            # 64 x 3 x 1 x 1
+            img_f = F.conv2d(input=org_img, weight=norm_params)
+        elif self.hyper == 1:
+            N, C, H, W = org_img.shape
+            if self.hyper_conv == 1:
+                cur_idx = 3 * self.feature_num
+            elif self.hyper_conv == 3:
+                cur_idx = 3 * self.feature_num * 9
+            transform_params = self.cls_output[:,:cur_idx]
+            if self.hyper_conv == 1:
+                transform_params = transform_params.reshape(N * self.feature_num, 3)
+            elif self.hyper_conv == 3:
+                transform_params = transform_params.reshape(N * self.feature_num, 27)
+
+            transform_params = self.sigmoid(self.trans_param * transform_params)
+            epsilon = 1e-10
+            t_sum = torch.sum(transform_params, dim=1, keepdim=True)
+            transform_params = transform_params / (t_sum + epsilon)
+
+
+            if self.hyper_conv == 1:
+                transform_params = transform_params.reshape(N * self.feature_num, 3, 1, 1)
+            elif self.hyper_conv == 3:
+                transform_params = transform_params.reshape(N * self.feature_num, 3, 3, 3)
+            org_img = org_img.reshape(1, N * 3, H, W)
+            if self.hyper_conv == 1:
+                img_f = F.conv2d(input=org_img, weight=transform_params, groups=N)
+            elif self.hyper_conv == 3:
+                img_f = F.conv2d(input=org_img, weight=transform_params, groups=N, padding=1)
+
+            img_f = img_f.reshape(N,self.feature_num,H,W)
+
+            
+            plus_idx = self.control_point_num * self.feature_num
+            offset_param = self.cls_output[:,cur_idx:cur_idx + plus_idx]
+            cur_idx += plus_idx
+            img_f_t = self.colorTransform(img_f, offset_param, index_image, color_map_control)
+        
+        if self.mid_conv > 0:
+            img_f_t = self.mid_conv_module(img_f_t)
+        if self.last_hyper == 1:
+            hyper_params = self.cls_output[:,cur_idx:]
+            hyper_params = hyper_params.reshape(N * 3, self.feature_num, 1, 1)
+            hyper_params /= self.feature_num
+
+            img_f_t = img_f_t.reshape(1, N * self.feature_num, H, W)
+            out_img = F.conv2d(input=img_f_t, weight=hyper_params, groups=N)
+            out_img = out_img.reshape(N,3,H,W)
+        else:
+            out_img = self.conv_out(img_f_t)
+
+        return out_img
+
 class DCPNet25(nn.Module):
     def __init__(self, config):
         super(DCPNet25, self).__init__()
@@ -2632,7 +2774,6 @@ class colorTransform3(nn.Module):
         self.w = nn.Parameter(torch.tensor([0.5, 0.5], dtype=torch.float32))
         self.softmax = nn.Softmax(dim=0)
         self.control_point = control_point
-        self.sigmoid = torch.nn.Sigmoid()
         self.config = config
         self.feature_num = config.feature_num
 
@@ -2647,7 +2788,6 @@ class colorTransform3(nn.Module):
 
     def forward(self, org_img, params, color_mapping_global_a, color_map_control):
         N, C, H, W = org_img.shape
-        #out_img = torch.zeros_like(org_img)
         color_map_control_x = color_map_control.clone()
         if self.offset_param != -1:
             params = params.reshape(N, self.feature_num, self.control_point) * self.offset_param
@@ -2658,7 +2798,6 @@ class colorTransform3(nn.Module):
         color_map_control_y = torch.cat((color_map_control_y, color_map_control_y[:, :, self.control_point-1:self.control_point]), dim=2)
         color_map_control_x = torch.cat((color_map_control_x, color_map_control_x[:, :, self.control_point-1:self.control_point]), dim=2)
         img_reshaped = org_img.reshape(N, self.feature_num, -1)
-        #out_img_reshaped = out_img.reshape(N, self.feature_num, -1)
         img_reshaped_val = img_reshaped * (self.control_point-1)
 
 
@@ -2673,11 +2812,6 @@ class colorTransform3(nn.Module):
         mapped_color_map_control_y_plus = torch.gather(color_map_control_y, 2, img_reshaped_index_plus)
 
         out_img_reshaped = img_reshaped_coeff_one * mapped_color_map_control_y + img_reshaped_coeff * mapped_color_map_control_y_plus
-        # for i in range(0, self.control_point):
-        #     mask = img_reshaped_index == i
-        #     masked_img_reshaped_coeff = mask * img_reshaped_coeff
-        #     masked_img_reshaped_coeff_one = mask * img_reshaped_coeff_one
-        #     out_img_reshaped += masked_img_reshaped_coeff_one * color_map_control_y[:,:,i:i+1] + masked_img_reshaped_coeff * color_map_control_y[:,:,i+1:i+2]
 
         out_img_reshaped = out_img_reshaped.reshape(N, C, H, W)
         return out_img_reshaped
