@@ -81,7 +81,7 @@ def structural_similarity(outputs, targets):
     outputs = torch.clamp(outputs, 0, 1)
     targets = torch.clamp(targets, 0, 1)
 
-    ssim = kornia.metrics.ssim(outputs, targets, window_size=11, max_val=1.0)
+    ssim = kornia.metrics.ssim(outputs, targets, window_size=11, max_val=1.0, padding='valid')
     ssim = torch.mean(ssim)
     return ssim
 
@@ -592,6 +592,8 @@ class solver_IE(object):
                 pred = 0.5 * (pred + 1.0)
                 label = 0.5 * (label + 1.0)
                 
+            pred = torch.clamp(pred, 0, 1)
+            
             psnr = self.PSNR(pred, label)
             epoch_psnr = epoch_psnr + psnr.detach().cpu().numpy()
 
