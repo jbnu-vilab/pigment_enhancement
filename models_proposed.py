@@ -88,7 +88,7 @@ class convBlock(nn.Module):
         return self.model(x)
 
 class convBlock2(nn.Module):
-    def __init__(self, input_feature, output_feature, ksize=3, stride=2, pad=1, extra_conv=False, act='silu'):
+    def __init__(self, input_feature, output_feature, ksize=3, stride=2, pad=1, extra_conv=False, act='silu', bn=True):
         super(convBlock2, self).__init__()
         if act=='silu':
             activation = nn.SiLU(inplace=True)
@@ -98,21 +98,30 @@ class convBlock2(nn.Module):
             activation = nn.LeakyReLU(0.1)
         elif act=='relu':
             activation = nn.ReLU()
+        elif act=='none':
+            activation = nn.Identity()
 
         lists = []
+        lists += [nn.Conv2d(input_feature, output_feature, kernel_size=(ksize, ksize), stride=(stride, stride), padding=(pad, pad))]
+        if bn == True:
+            lists += [nn.BatchNorm2d(output_feature)]
+        lists += [activation]
         if extra_conv:
-            lists += [
-                nn.Conv2d(input_feature, output_feature, kernel_size=(ksize, ksize), stride=(stride, stride), padding=(pad, pad)),
-                nn.BatchNorm2d(output_feature),
-                activation,  # Swish activation
-                nn.Conv2d(output_feature, output_feature, kernel_size=(ksize, ksize), stride=(stride, stride), padding=(pad, pad))
-            ]
-        else:
-            lists += [
-                nn.Conv2d(input_feature, output_feature, kernel_size=(ksize, ksize), stride=(stride, stride), padding=(pad, pad)),
-                nn.BatchNorm2d(output_feature),
-                activation,
-            ]
+            lists += [nn.Conv2d(output_feature, output_feature, kernel_size=(ksize, ksize), stride=(stride, stride), padding=(pad, pad))]
+        
+        # if extra_conv:
+        #     lists += [
+        #         nn.Conv2d(input_feature, output_feature, kernel_size=(ksize, ksize), stride=(stride, stride), padding=(pad, pad)),
+        #         nn.BatchNorm2d(output_feature),
+        #         activation,  # Swish activation
+        #         nn.Conv2d(output_feature, output_feature, kernel_size=(ksize, ksize), stride=(stride, stride), padding=(pad, pad))
+        #     ]
+        # else:
+        #     lists += [
+        #         nn.Conv2d(input_feature, output_feature, kernel_size=(ksize, ksize), stride=(stride, stride), padding=(pad, pad)),
+        #         nn.BatchNorm2d(output_feature),
+        #         activation,
+        #     ]
 
         self.model = nn.Sequential(*lists)
 
@@ -556,9 +565,22 @@ class DCPNet24(nn.Module):
                     conv_list.append(resBlock3(self.feature_num, self.feature_num, ksize=3, stride=1, pad=1, extra_conv=False, act='relu'))
             else:
                 if config.mid_conv_size == 3:
-                    conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=3, stride=1, pad=1, extra_conv=False, act='relu'))
+                    ksize1 = 3
+                    pad1 = 1
+                elif config.mid_conv_size == 1:
+                    ksize1 = 1
+                    pad1 = 0
+                if config.last_relu == 1:
+                    act1 = 'relu'
+                    bn1 = True
                 else:
-                    conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=1, stride=1, pad=0, extra_conv=False, act='relu'))
+                    if i < self.mid_conv - 1:
+                        act1 = 'relu'
+                        bn1 = True
+                    else:
+                        act1 = 'none'
+                        bn1 = False
+                conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=ksize1, stride=1, pad=pad1, extra_conv=False, act=act1, bn=bn1))
         if self.mid_conv > 0:
             self.mid_conv_module = nn.Sequential(*conv_list)
         if config.xoffset == 0:
