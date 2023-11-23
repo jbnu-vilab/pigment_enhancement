@@ -1020,9 +1020,22 @@ class DCPNet240(nn.Module):
                     conv_list.append(resBlock3(self.feature_num, self.feature_num, ksize=3, stride=1, pad=1, extra_conv=False, act='relu'))
             else:
                 if config.mid_conv_size == 3:
-                    conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=3, stride=1, pad=1, extra_conv=False, act='relu'))
+                    ksize1 = 3
+                    pad1 = 1
+                elif config.mid_conv_size == 1:
+                    ksize1 = 1
+                    pad1 = 0
+                if config.last_relu == 1:
+                    act1 = 'relu'
+                    bn1 = True
                 else:
-                    conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=1, stride=1, pad=0, extra_conv=False, act='relu'))
+                    if i < self.mid_conv - 1:
+                        act1 = 'relu'
+                        bn1 = True
+                    else:
+                        act1 = 'none'
+                        bn1 = False
+                conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=ksize1, stride=1, pad=pad1, extra_conv=False, act=act1, bn=bn1))
         if self.mid_conv > 0:
             self.mid_conv_module = nn.Sequential(*conv_list)
         self.colorTransform = colorTransform3(self.control_point_num, config.offset_param, config)
