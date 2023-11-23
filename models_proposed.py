@@ -432,6 +432,52 @@ class colorTransform2(nn.Module):
         return out_img_reshaped
 
 
+class BasicBlockT(nn.Sequential):
+    r"""The basic block module (Conv+LeakyReLU[+InstanceNorm]).
+    """
+
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, norm=False):
+        body = [
+            nn.Conv2d(in_channels, out_channels, kernel_size, stride=stride, padding=1),
+            nn.LeakyReLU(0.2)
+        ]
+        if norm:
+            body.append(nn.InstanceNorm2d(out_channels, affine=True))
+        super(BasicBlockT, self).__init__(*body)
+
+
+class TPAMIBackbone(nn.Sequential):
+    r"""The 5-layer CNN backbone module in [TPAMI 3D-LUT]
+        (https://github.com/HuiZeng/Image-Adaptive-3DLUT).
+
+    Args:
+        pretrained (bool, optional): [ignored].
+        input_resolution (int, optional): Resolution for pre-downsampling. Default: 256.
+        extra_pooling (bool, optional): Whether to insert an extra pooling layer
+            at the very end of the module to reduce the number of parameters of
+            the subsequent module. Default: False.
+    """
+
+    def __init__(self, pretrained=False, input_resolution=256, extra_pooling=True):
+        body = [
+            BasicBlockT(3, 16, stride=2, norm=True),
+            BasicBlockT(16, 32, stride=2, norm=True),
+            BasicBlockT(32, 64, stride=2, norm=True),
+            BasicBlockT(64, 128, stride=2, norm=True),
+            BasicBlockT(128, 128, stride=2),
+            nn.Dropout(p=0.5),
+        ]
+        if extra_pooling:
+            body.append(nn.AdaptiveAvgPool2d(2))
+        super().__init__(*body)
+        self.input_resolution = input_resolution
+        self.out_channels = 128 * (4 if extra_pooling else 64)
+
+    def forward(self, imgs):
+        imgs = F.interpolate(imgs, size=(self.input_resolution,) * 2,
+            mode='bilinear', align_corners=False)
+        return super().forward(imgs).view(imgs.shape[0], -1)
+
 
 class DCPNet24(nn.Module):
     def __init__(self, config):
@@ -3369,13 +3415,16 @@ class resnet18_224(nn.Module):
 
 class resnet18_224_2(nn.Module):
 
-    def __init__(self, out_dim=5, out_dim2=0, out_dim3=0, out_dim4=0, res_num=18, res_size=224, aug_test=False, fc_num=1, init_w=0, init_w2=0, init_w_last=0):
+    def __init__(self, out_dim=5, out_dim2=0, out_dim3=0, out_dim4=0, res_num=18, res_size=224, aug_test=False, fc_num=2, init_w=0, init_w2=0, init_w_last=0):
         super(resnet18_224_2, self).__init__()
 
         self.aug_test = aug_test
         self.out_dim2 = out_dim2
         self.out_dim3 = out_dim3
         self.out_dim4 = out_dim4
+        self.fc_num = fc_num
+        if res_num == 5:
+            net = TPAMIBackbone(input_resolution=res_size)
         if res_num == 18:
             net = models.resnet18(pretrained=True)
         elif res_num == 34:
@@ -3435,48 +3484,89 @@ class resnet18_224_2(nn.Module):
             if init_w > 0:
                 initialize_weights_part(net.fc)
 
-        elif res_num == 18 or res_num == 34:
+        elif res_num == 18 or res_num == 34 or res_num == 5:
             net.fc = nn.Identity()
-            lists = []
-            lists += [nn.Linear(512, 1024),
-                      # nn.BatchNorm2d(1024),
-                      nn.ReLU(),
-                      nn.Linear(1024, out_dim)]
-            self.fc = nn.Sequential(*lists)
-            if init_w == -1:
-                torch.nn.init.constant_(self.fc[2].weight.data, 0)
-                torch.nn.init.constant_(self.fc[2].bias.data, 0)
-
-            if out_dim2 > 0:
+            # 1
+            if self.fc_num != 1:
                 lists = []
                 lists += [nn.Linear(512, 1024),
-                          # nn.BatchNorm2d(1024),
-                          nn.ReLU(),
-                          nn.Linear(1024, out_dim2)]
-                self.fc2 = nn.Sequential(*lists)
-            if out_dim3 > 0:
-                self.fc3 = nn.Linear(512, out_dim3)
-                if init_w2 == 1:
-                    torch.nn.init.constant_(self.fc3.weight.data, 0)
-                    torch.nn.init.constant_(self.fc3.bias.data, 1)
-                if init_w2 == 2:
-                    torch.nn.init.constant_(self.fc3.weight.data, 0)
-                    torch.nn.init.constant_(self.fc3.bias.data, 0)
-            if out_dim4 > 0:
-                lists = []
-                lists += [nn.Linear(512, 1024),
-                          # nn.BatchNorm2d(1024),
-                          nn.ReLU(),
-                          nn.Linear(1024, out_dim4)]
-                self.fc4 = nn.Sequential(*lists)
-                if init_w_last == 0:
-                    initialize_weights_part(self.fc4)
-                elif init_w_last == 1:
-                    torch.nn.init.constant_(self.fc4[2].weight.data, 0)
-                    torch.nn.init.constant_(self.fc4[2].bias.data, 1.0 / 64.0)
+                        # nn.BatchNorm2d(1024),
+                        nn.ReLU(),
+                        nn.Linear(1024, out_dim)]
+                self.fc = nn.Sequential(*lists)
+                if init_w == -1:
+                    torch.nn.init.constant_(self.fc[2].weight.data, 0)
+                    torch.nn.init.constant_(self.fc[2].bias.data, 0)
 
-            if init_w > 0:
-                initialize_weights_part(net.fc)
+                # 2
+                if out_dim2 > 0:
+                    lists = []
+                    lists += [nn.Linear(512, 1024),
+                            # nn.BatchNorm2d(1024),
+                            nn.ReLU(),
+                            nn.Linear(1024, out_dim2)]
+                    self.fc2 = nn.Sequential(*lists)
+                # 3 (ignore)
+                if out_dim3 > 0:
+                    self.fc3 = nn.Linear(512, out_dim3)
+                    if init_w2 == 1:
+                        torch.nn.init.constant_(self.fc3.weight.data, 0)
+                        torch.nn.init.constant_(self.fc3.bias.data, 1)
+                    if init_w2 == 2:
+                        torch.nn.init.constant_(self.fc3.weight.data, 0)
+                        torch.nn.init.constant_(self.fc3.bias.data, 0)
+                # 4
+                if out_dim4 > 0:
+                    lists = []
+                    lists += [nn.Linear(512, 1024),
+                            # nn.BatchNorm2d(1024),
+                            nn.ReLU(),
+                            nn.Linear(1024, out_dim4)]
+                    self.fc4 = nn.Sequential(*lists)
+                    if init_w_last == 0:
+                        initialize_weights_part(self.fc4)
+                    elif init_w_last == 1:
+                        torch.nn.init.constant_(self.fc4[2].weight.data, 0)
+                        torch.nn.init.constant_(self.fc4[2].bias.data, 1.0 / 64.0)
+
+                if init_w > 0:
+                    initialize_weights_part(net.fc)
+            elif self.fc_num == 1:
+                lists = []
+                lists += [nn.Linear(512, out_dim)]
+                self.fc = nn.Sequential(*lists)
+                if init_w == -1:
+                    torch.nn.init.constant_(self.fc[0].weight.data, 0)
+                    torch.nn.init.constant_(self.fc[0].bias.data, 0)
+
+                # 2
+                if out_dim2 > 0:
+                    lists = []
+                    lists += [nn.Linear(512, out_dim2)]
+                    self.fc2 = nn.Sequential(*lists)
+                # 3 (ignore)
+                if out_dim3 > 0:
+                    self.fc3 = nn.Linear(512, out_dim3)
+                    if init_w2 == 1:
+                        torch.nn.init.constant_(self.fc3.weight.data, 0)
+                        torch.nn.init.constant_(self.fc3.bias.data, 1)
+                    if init_w2 == 2:
+                        torch.nn.init.constant_(self.fc3.weight.data, 0)
+                        torch.nn.init.constant_(self.fc3.bias.data, 0)
+                # 4
+                if out_dim4 > 0:
+                    lists = []
+                    lists += [nn.Linear(512,  out_dim4)]
+                    self.fc4 = nn.Sequential(*lists)
+                    if init_w_last == 0:
+                        initialize_weights_part(self.fc4)
+                    elif init_w_last == 1:
+                        torch.nn.init.constant_(self.fc4[0].weight.data, 0)
+                        torch.nn.init.constant_(self.fc4[0].bias.data, 1.0 / 64.0)
+
+                if init_w > 0:
+                    initialize_weights_part(net.fc)
+                
 
             # multi layer...
         elif res_num == 16 or res_num == 19:
