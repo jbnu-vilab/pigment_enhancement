@@ -298,6 +298,7 @@ if __name__ == '__main__':
     
     parser.add_argument("--antialias", dest='antialias', type=int, default=0)
     parser.add_argument("--last_relu", dest='last_relu', type=int, default=1)
+    parser.add_argument("--fc_node", dest='fc_node', type=int, default=1024)
     
     config = parser.parse_args()
     num_device = torch.cuda.device_count()
