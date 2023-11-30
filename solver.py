@@ -220,6 +220,17 @@ class solver_IE(object):
         self.new_res = config.new_res
         self.hyper = config.hyper
         if config.new_res > 0:
+            if config.parallel == 0:
+                backbone_params = list(map(id, self.model.classifier.model.parameters()))
+                other_params = filter(lambda p: id(p) not in backbone_params, self.model.parameters())
+                self.paras = [{'params': other_params, 'lr': self.lr}, {'params': self.model.classifier.model.parameters(), 'lr': self.lr * config.param1_lr_ratio}]
+            else:
+                backbone_params = list(map(id, self.model.module.classifier.model.parameters()))
+                other_params = filter(lambda p: id(p) not in backbone_params, self.model.module.parameters())
+                self.paras = [{'params': other_params, 'lr': self.lr}, {'params': self.model.module.classifier.model.parameters(), 'lr': self.lr * config.param1_lr_ratio}]
+            
+            self.optimizer = torch.optim.Adam(self.paras, weight_decay=self.weight_decay)
+            # backbone만 lr ratio 줘서 해보기...
             # if config.model == 29:
             #     self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
             # else:
@@ -249,7 +260,8 @@ class solver_IE(object):
             #         self.paras = [{'params': other_params, 'lr': self.lr},
             #                     {'params': self.model.module.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio}]
             #     self.optimizer = torch.optim.Adam(self.paras, weight_decay=self.weight_decay)
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+            
+            #self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
 
