@@ -260,8 +260,8 @@ class solver_IE(object):
             #         self.paras = [{'params': other_params, 'lr': self.lr},
             #                     {'params': self.model.module.classifier.fc.parameters(), 'lr': self.lr * config.param1_lr_ratio}]
             #     self.optimizer = torch.optim.Adam(self.paras, weight_decay=self.weight_decay)
-            
-            #self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+            if self.config.optimizer_debug == 1:
+                self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
 
