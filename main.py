@@ -301,6 +301,8 @@ if __name__ == '__main__':
     parser.add_argument("--fc_node", dest='fc_node', type=int, default=1024)
     parser.add_argument("--optimizer_debug", dest='optimizer_debug', type=int, default=0)
     
+    parser.add_argument("--write_text", dest='write_text', type=int, default=0)
+    
     config = parser.parse_args()
     num_device = torch.cuda.device_count()
     if num_device > 1:

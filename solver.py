@@ -17,6 +17,7 @@ import models_proposed
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
+import numpy as np
 
 def setup(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
@@ -579,6 +580,13 @@ class solver_IE(object):
             if not os.path.exists(img_path):
                 os.makedirs(img_path)
 
+        if self.config.write_text == 1 and self.config.rank == 0:
+            f1 = open("transform_params.txt", 'w')
+            f2 = open("offset_param.txt", 'w')
+            f3 = open("hyper_params.txt", 'w')
+            np.set_printoptions(linewidth=np.inf)
+            np.set_printoptions(suppress=True)
+            np.set_printoptions(precision=5)
 
         for img, label, index, img_idx in data:
             N, C, H, W = img.shape
@@ -600,7 +608,30 @@ class solver_IE(object):
             if self.modeln == 30 or self.modeln == 31:
                 pred, params = self.model(img, index, color_position)
             else:
-                pred = self.model(img, index, color_position)
+                if self.config.write_text == 0:
+                    pred = self.model(img, index, color_position)
+                else:
+                    pred, transform_params, offset_param, hyper_params = self.model(img, index, color_position)
+                    transform_params = transform_params.reshape(self.config.feature_num * 3)
+                    #offset_param = offset_param.reshape(self.config.feature_num * (self.config.control_point + 2))
+                    offset_param = offset_param.reshape(self.config.feature_num, (self.config.control_point + 2))
+                    hyper_params = hyper_params.reshape(self.config.feature_num * 3)
+                    
+                    transform_params = transform_params.cpu().detach().numpy()
+                    offset_param = offset_param.cpu().detach().numpy()
+                    hyper_params = hyper_params.cpu().detach().numpy()
+                    #hypers.append(hyper_params.cpu().detach().numpy())
+                    transform_params = np.array2string(transform_params)[1:-1]
+                    
+                    hyper_params = np.array2string(hyper_params)[1:-1]
+                    if self.config.rank == 0:
+                        f1.write("{}\n".format(transform_params))
+                        for i in range(0, self.config.feature_num ):
+                            offset_param_temp = np.array2string(offset_param[i,:])
+                            offset_param_temp = np.array2string(offset_param[i,:])[1:-1]
+                            f2.write("{}\n".format(offset_param_temp))
+                        f3.write("{}\n".format(hyper_params))
+                    #np.savetxt('my_file.txt', torch.Tensor([3,4,5,6]).numpy())
             #pred = self.model(img, index, color_position)
                 
             if self.vgg_loss == 0:
@@ -636,6 +667,10 @@ class solver_IE(object):
                 img_path2 = "{}/{:04d}.png".format(img_path, img_idx[0])
                 save_image(pred, img_path2)
 
+        if self.config.write_text == 1 and self.config.rank == 0:
+            f1.close()
+            f2.close()
+            f3.close()
         #print('\n{} images\n'.format(n))
         epoch_loss = epoch_loss / n
         epoch_psnr = epoch_psnr / n

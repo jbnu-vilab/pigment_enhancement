@@ -491,6 +491,8 @@ class TPAMIBackbone(nn.Sequential):
 class DCPNet24(nn.Module):
     def __init__(self, config):
         super(DCPNet24, self).__init__()
+        
+        self.write_text = config.write_text
 
         self.control_point_num = config.control_point + 2
         self.feature_num = config.feature_num
@@ -965,7 +967,10 @@ class DCPNet24(nn.Module):
                 y1 = self.res9(y1)
 
             out_img = y1 + out_img
-        return out_img
+        if self.write_text == 0:
+            return out_img
+        else:
+            return out_img, transform_params, offset_param, hyper_params
 
 
 class DCPNet240(nn.Module):
