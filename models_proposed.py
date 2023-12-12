@@ -539,7 +539,7 @@ class DCPNet24(nn.Module):
                 self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num)
             elif config.new_res == 1:
                 self.classifier = resnet18_224_2(out_dim=param_num, out_dim2=0, out_dim3=param_xoffset, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num,
-                                               fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last, fc_node=config.fc_node)
+                                               fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last, fc_node=config.fc_node, fc_node1=config.fc_node1, fc_node2=config.fc_node2)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
             if self.hyper_conv == 1:
@@ -552,7 +552,7 @@ class DCPNet24(nn.Module):
                 self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num)
             elif config.new_res == 1:
                 self.classifier = resnet18_224_2(out_dim=param_num1, out_dim2=param_num2, out_dim3=param_xoffset, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num,
-                                                 fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last, fc_node=config.fc_node)
+                                                 fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last, fc_node=config.fc_node, fc_node1=config.fc_node1, fc_node2=config.fc_node2)
 
 
         self.mid_conv = config.mid_conv
@@ -1001,7 +1001,7 @@ class DCPNet240(nn.Module):
                 self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num)
             elif config.new_res == 1:
                 self.classifier = resnet18_224_2(out_dim=param_num, out_dim2=0, out_dim3=0, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num,
-                                               fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last, fc_node=config.fc_node)
+                                               fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last, fc_node=config.fc_node, fc_node1=config.fc_node1, fc_node2=config.fc_node2)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
             if self.hyper_conv == 1:
@@ -1010,7 +1010,7 @@ class DCPNet240(nn.Module):
             elif self.hyper_conv == 3:
                 param_num += (3 * self.feature_num) * 9
                 param_num2 = (3 * self.feature_num) * 9
-            self.classifier = resnet18_224_2(out_dim=param_num1, out_dim2=param_num2, out_dim3=0, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last, fc_node=config.fc_node)
+            self.classifier = resnet18_224_2(out_dim=param_num1, out_dim2=param_num2, out_dim3=0, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last, fc_node=config.fc_node, fc_node1=config.fc_node1, fc_node2=config.fc_node2)
 
 
         self.mid_conv = config.mid_conv
@@ -3455,7 +3455,7 @@ class resnet18_224(nn.Module):
 
 class resnet18_224_2(nn.Module):
 
-    def __init__(self, out_dim=5, out_dim2=0, out_dim3=0, out_dim4=0, res_num=18, res_size=224, aug_test=False, fc_num=2, init_w=0, init_w2=0, init_w_last=0, fc_node=1024):
+    def __init__(self, out_dim=5, out_dim2=0, out_dim3=0, out_dim4=0, res_num=18, res_size=224, aug_test=False, fc_num=2, init_w=0, init_w2=0, init_w_last=0, fc_node=1024, fc_node1=1024, fc_node2=1024):
         super(resnet18_224_2, self).__init__()
 
         self.aug_test = aug_test
@@ -3484,10 +3484,10 @@ class resnet18_224_2(nn.Module):
         if res_num == 50 or res_num == 101:
             net.fc = nn.Identity()
             lists = []
-            lists += [nn.Linear(2048, fc_node),
+            lists += [nn.Linear(2048, fc_node1),
                       # nn.BatchNorm2d(1024),
                       nn.ReLU(),
-                      nn.Linear(fc_node, out_dim)]
+                      nn.Linear(fc_node1, out_dim)]
             self.fc = nn.Sequential(*lists)
             if init_w == -1:
                 torch.nn.init.constant_(self.fc[2].weight.data, 0)
@@ -3495,10 +3495,10 @@ class resnet18_224_2(nn.Module):
 
             if out_dim2 > 0:
                 lists = []
-                lists += [nn.Linear(2048, fc_node),
+                lists += [nn.Linear(2048, fc_node2),
                           # nn.BatchNorm2d(1024),
                           nn.ReLU(),
-                          nn.Linear(fc_node, out_dim2)]
+                          nn.Linear(fc_node2, out_dim2)]
                 self.fc2 = nn.Sequential(*lists)
             if out_dim3 > 0:
                 self.fc3 = nn.Linear(2048, out_dim3)
@@ -3510,10 +3510,10 @@ class resnet18_224_2(nn.Module):
                     torch.nn.init.constant_(self.fc3.bias.data, 0)
             if out_dim4 > 0:
                 lists = []
-                lists += [nn.Linear(2048, fc_node),
+                lists += [nn.Linear(2048, fc_node2),
                           # nn.BatchNorm2d(1024),
                           nn.ReLU(),
-                          nn.Linear(fc_node, out_dim4)]
+                          nn.Linear(fc_node2, out_dim4)]
                 self.fc4 = nn.Sequential(*lists)
                 if init_w_last == 0:
                     initialize_weights_part(self.fc4)
@@ -3529,10 +3529,10 @@ class resnet18_224_2(nn.Module):
             # 1
             if self.fc_num != 1:
                 lists = []
-                lists += [nn.Linear(512, fc_node),
+                lists += [nn.Linear(512, fc_node1),
                         # nn.BatchNorm2d(1024),
                         nn.ReLU(),
-                        nn.Linear(fc_node, out_dim)]
+                        nn.Linear(fc_node1, out_dim)]
                 self.fc = nn.Sequential(*lists)
                 if init_w == -1:
                     torch.nn.init.constant_(self.fc[2].weight.data, 0)
@@ -3541,10 +3541,10 @@ class resnet18_224_2(nn.Module):
                 # 2
                 if out_dim2 > 0:
                     lists = []
-                    lists += [nn.Linear(512, fc_node),
+                    lists += [nn.Linear(512, fc_node2),
                             # nn.BatchNorm2d(1024),
                             nn.ReLU(),
-                            nn.Linear(fc_node, out_dim2)]
+                            nn.Linear(fc_node2, out_dim2)]
                     self.fc2 = nn.Sequential(*lists)
                 # 3 (ignore)
                 if out_dim3 > 0:
@@ -3558,10 +3558,10 @@ class resnet18_224_2(nn.Module):
                 # 4
                 if out_dim4 > 0:
                     lists = []
-                    lists += [nn.Linear(512, fc_node),
+                    lists += [nn.Linear(512, fc_node2),
                             # nn.BatchNorm2d(1024),
                             nn.ReLU(),
-                            nn.Linear(fc_node, out_dim4)]
+                            nn.Linear(fc_node2, out_dim4)]
                     self.fc4 = nn.Sequential(*lists)
                     if init_w_last == 0:
                         initialize_weights_part(self.fc4)
