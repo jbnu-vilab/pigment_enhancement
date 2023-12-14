@@ -280,7 +280,7 @@ class solver_IE(object):
         elif config.scheduler == 'constant':
             self.scheduler = ConstantLRSchedule(self.optimizer)
         elif config.scheduler == 'cosine':
-            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=10 * batch_step_num, eta_min = 5e-10)
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=config.epochs * batch_step_num, eta_min = 5e-10)
         
         if config.resume == 1: # resume to the latest epoch
             if self.parallel > 0:
