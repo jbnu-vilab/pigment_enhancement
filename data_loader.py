@@ -3,7 +3,7 @@ import torchvision
 import folders
 import random
 import torchvision.transforms.functional as F
-from ppr10k import ImageDataset_paper, ImageDataset_paper2, ImageDataset_paper3
+from ppr10k import ImageDataset_paper, ImageDataset_paper2, ImageDataset_paper3, ImageDataset_paper_aug
 from torch.utils.data.distributed import DistributedSampler
 
 # 1. random crop with random..size
@@ -254,6 +254,18 @@ class DataLoader(object):
                 self.data = ImageDataset_paper(root=path, mode="train", use_mask=False, retoucher=retoucher, loader_size=config.loader_size, div=config.div)
             else:
                 self.data = ImageDataset_paper(root=path, mode="test", use_mask=False, retoucher=retoucher, loader_size=config.loader_size, div=config.div)
+        
+        elif dataset == 'ppr10ka_aug' or dataset == 'ppr10kb_aug' or dataset == 'ppr10kc_aug':
+            if dataset == 'ppr10ka_aug':
+                retoucher = 'A'
+            elif dataset == 'ppr10kb_aug':
+                retoucher = 'B'
+            elif dataset == 'ppr10kc_aug':
+                retoucher = 'C'
+            if self.istrain == 1:
+                self.data = ImageDataset_paper_aug(root=path, mode="train", use_mask=False, retoucher=retoucher, loader_size=config.loader_size, div=config.div)
+            else:
+                self.data = ImageDataset_paper_aug(root=path, mode="test", use_mask=False, retoucher=retoucher, loader_size=config.loader_size, div=config.div)
             #self.data = folders.ppr10kFolder(root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter, dataset=dataset)
         elif dataset == 'adobe5k2':
             if self.istrain == 1:

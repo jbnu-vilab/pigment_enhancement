@@ -103,7 +103,10 @@ def main(config):
         'hdr': '../DB/Enhancement_DB/hdrplus/',
         'ppr10ka': '../DB/Enhancement_DB/train_val_images_tif_360p/',
         'ppr10kb': '../DB/Enhancement_DB/train_val_images_tif_360p/',
-        'ppr10kc': '../DB/Enhancement_DB/train_val_images_tif_360p/'
+        'ppr10kc': '../DB/Enhancement_DB/train_val_images_tif_360p/',
+        'ppr10ka_aug': '../DB/Enhancement_DB/train_val_images_tif_360p/',
+        'ppr10kb_aug': '../DB/Enhancement_DB/train_val_images_tif_360p/',
+        'ppr10kc_aug': '../DB/Enhancement_DB/train_val_images_tif_360p/'
         #'adobe5k': '../DB/Enhancement_DB/Adobe5k_train_test/',
     }
     if os.path.exists('log') == False:
