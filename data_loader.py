@@ -290,13 +290,18 @@ class DataLoader(object):
     def get_data(self):
         if self.config.parallel == 0:
             if self.istrain:
-                dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
+                if self.config.dataset == 'ppr10ka_aug' or self.config.dataset == 'ppr10kb_aug' or self.config.dataset == 'ppr10kc_aug':
+                    dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers, drop_last=True)
+                else:
+                    dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
             else:
                 dataloader = torch.utils.data.DataLoader(self.data, batch_size=1, shuffle=False)
         else:
             if self.istrain:
-                
-                dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size // self.config.world_size, shuffle=False, num_workers= 16 // self.config.world_size, sampler = self.train_sampler, pin_memory=True )
+                if self.config.dataset == 'ppr10ka_aug' or self.config.dataset == 'ppr10kb_aug' or self.config.dataset == 'ppr10kc_aug':
+                    dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size // self.config.world_size, shuffle=False, num_workers= 16 // self.config.world_size, sampler = self.train_sampler, pin_memory=True, drop_last=True)
+                else:
+                    dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size // self.config.world_size, shuffle=False, num_workers= 16 // self.config.world_size, sampler = self.train_sampler, pin_memory=True)
             else:
                 #dataloader = torch.utils.data.DataLoader(self.data, batch_size=1, shuffle=False, sampler=self.test_sampler, pin_memory=True)
                 dataloader = torch.utils.data.DataLoader(self.data, batch_size=1, shuffle=False)
