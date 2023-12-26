@@ -3492,6 +3492,10 @@ class resnet18_224_2(nn.Module):
             if init_w == -1:
                 torch.nn.init.constant_(self.fc[2].weight.data, 0)
                 torch.nn.init.constant_(self.fc[2].bias.data, 0)
+            if init_w == 0:
+                initialize_weights_part(self.fc)
+                torch.nn.init.constant_(self.fc[2].weight.data, 0)
+                torch.nn.init.constant_(self.fc[2].bias.data, 0)
 
             if out_dim2 > 0:
                 lists = []
@@ -3546,6 +3550,10 @@ class resnet18_224_2(nn.Module):
                         nn.Linear(fc_node1, out_dim)]
                 self.fc = nn.Sequential(*lists)
                 if init_w == -1:
+                    torch.nn.init.constant_(self.fc[2].weight.data, 0)
+                    torch.nn.init.constant_(self.fc[2].bias.data, 0)
+                if init_w == 0:
+                    initialize_weights_part(self.fc)
                     torch.nn.init.constant_(self.fc[2].weight.data, 0)
                     torch.nn.init.constant_(self.fc[2].bias.data, 0)
 
