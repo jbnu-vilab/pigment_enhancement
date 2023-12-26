@@ -553,6 +553,7 @@ class DCPNet24(nn.Module):
             elif config.new_res == 1:
                 self.classifier = resnet18_224_2(out_dim=param_num1, out_dim2=param_num2, out_dim3=param_xoffset, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num,
                                                  fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last, fc_node=config.fc_node, fc_node1=config.fc_node1, fc_node2=config.fc_node2)
+                
 
 
         self.mid_conv = config.mid_conv
@@ -3529,8 +3530,8 @@ class resnet18_224_2(nn.Module):
                 if init_w_last == 0:
                     initialize_weights_part(self.fc4)
                 elif init_w_last == 1:
-                    torch.nn.init.constant_(self.fc4.weight.data, 0)
-                    torch.nn.init.constant_(self.fc4.bias.data, 1.0/64.0)
+                    torch.nn.init.constant_(self.fc4[2].weight.data, 0)
+                    torch.nn.init.constant_(self.fc4[2].bias.data, 1.0/64.0)
                 elif init_w_last == 2:
                     initialize_weights_part(self.fc4)
                     torch.nn.init.constant_(self.fc4[2].weight.data, 0)
@@ -3591,8 +3592,8 @@ class resnet18_224_2(nn.Module):
                     if init_w_last == 0:
                         initialize_weights_part(self.fc4)
                     elif init_w_last == 1:
-                        torch.nn.init.constant_(self.fc4.weight.data, 0)
-                        torch.nn.init.constant_(self.fc4.bias.data, 1.0/64.0)
+                        torch.nn.init.constant_(self.fc4[2].weight.data, 0)
+                        torch.nn.init.constant_(self.fc4[2].bias.data, 1.0 / 64.0)
                     elif init_w_last == 2:
                         initialize_weights_part(self.fc4)
                         torch.nn.init.constant_(self.fc4[2].weight.data, 0)
