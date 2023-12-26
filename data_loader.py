@@ -177,7 +177,7 @@ class DataLoader(object):
             antialias = True
         elif config.antialias == 2:
             antialias = False
-        if (dataset == 'adobe5k' or dataset == 'LOL' or dataset == 'uieb' or dataset == 'hdr' or dataset == 'adobe5k_tone'):
+        if (dataset == 'adobe5k' or dataset == 'LOL' or dataset == 'uieb' or dataset == 'hdr' or dataset == 'adobe5k_tone' or dataset == 'adobe5k_4k'):
              # Train transforms
             if istrain:
                 transforms = torchvision.transforms.Compose([
@@ -222,6 +222,9 @@ class DataLoader(object):
                 ])
 
         if dataset == 'adobe5k':
+            self.data = folders.Adobe5kFolder(
+                root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter)
+        elif dataset == 'adobe5k_4k':
             self.data = folders.Adobe5kFolder(
                 root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter)
         elif dataset == 'adobe5k_tone':
