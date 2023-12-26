@@ -3500,6 +3500,13 @@ class resnet18_224_2(nn.Module):
                           nn.ReLU(),
                           nn.Linear(fc_node2, out_dim2)]
                 self.fc2 = nn.Sequential(*lists)
+                if init_w2 == 3:
+                    initialize_weights_part(self.fc2)
+                if init_w2 == 4:
+                    initialize_weights_part(self.fc2[0])
+                    torch.nn.init.constant_(self.fc2[2].weight.data, 0)
+                    torch.nn.init.constant_(self.fc2[2].bias.data, 0)
+                    
             if out_dim3 > 0:
                 self.fc3 = nn.Linear(2048, out_dim3)
                 if init_w2 == 1:
@@ -3520,6 +3527,10 @@ class resnet18_224_2(nn.Module):
                 elif init_w_last == 1:
                     torch.nn.init.constant_(self.fc4.weight.data, 0)
                     torch.nn.init.constant_(self.fc4.bias.data, 1.0/64.0)
+                elif init_w_last == 2:
+                    initialize_weights_part(self.fc4)
+                    torch.nn.init.constant_(self.fc4[2].weight.data, 0)
+                    torch.nn.init.constant_(self.fc4[2].bias.data, 1.0/64.0)
 
             if init_w > 0:
                 initialize_weights_part(net.fc)
@@ -3546,6 +3557,12 @@ class resnet18_224_2(nn.Module):
                             nn.ReLU(),
                             nn.Linear(fc_node2, out_dim2)]
                     self.fc2 = nn.Sequential(*lists)
+                    if init_w2 == 3:
+                        initialize_weights_part(self.fc2)
+                    if init_w2 == 4:
+                        initialize_weights_part(self.fc2[0])
+                        torch.nn.init.constant_(self.fc2[2].weight.data, 0)
+                        torch.nn.init.constant_(self.fc2[2].bias.data, 0)
                 # 3 (ignore)
                 if out_dim3 > 0:
                     self.fc3 = nn.Linear(512, out_dim3)
@@ -3566,8 +3583,12 @@ class resnet18_224_2(nn.Module):
                     if init_w_last == 0:
                         initialize_weights_part(self.fc4)
                     elif init_w_last == 1:
+                        torch.nn.init.constant_(self.fc4.weight.data, 0)
+                        torch.nn.init.constant_(self.fc4.bias.data, 1.0/64.0)
+                    elif init_w_last == 2:
+                        initialize_weights_part(self.fc4)
                         torch.nn.init.constant_(self.fc4[2].weight.data, 0)
-                        torch.nn.init.constant_(self.fc4[2].bias.data, 1.0 / 64.0)
+                        torch.nn.init.constant_(self.fc4[2].bias.data, 1.0/64.0)
 
                 if init_w > 0:
                     initialize_weights_part(net.fc)
