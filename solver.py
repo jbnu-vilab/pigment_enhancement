@@ -610,10 +610,10 @@ class solver_IE(object):
                 pred, params = self.model(img, index, color_position)
             else:
                 if self.config.write_text == 0:
-                    start = time.time()
+                    #start = time.time()
                     pred = self.model(img, index, color_position)
-                    end = time.time()
-                    print(f"{end - start:.5f} sec")
+                    #end = time.time()
+                    #print(f"{end - start:.5f} sec")
                 else:
                     pred, transform_params, offset_param, hyper_params = self.model(img, index, color_position)
                     transform_params = transform_params.reshape(self.config.feature_num * 3)
