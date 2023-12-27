@@ -589,98 +589,112 @@ class solver_IE(object):
             np.set_printoptions(suppress=True)
             np.set_printoptions(precision=5)
 
-        for img, label, index, img_idx in data:
-            N, C, H, W = img.shape
-            temp = [i / (self.control_point + 1) for i in range(self.control_point + 2)]
-            color_position = torch.tensor(temp)
-            color_position = color_position.unsqueeze(0).unsqueeze(1)
-            color_position = color_position.repeat(N, self.config.feature_num, 1)
-            color_position = torch.tensor(color_position.cuda(device))
-            # Data.
-            img = torch.tensor(img.cuda(device))
-            index = torch.tensor(index.cuda(device))
-            label = torch.tensor(label.cuda(device))
+        with torch.no_grad():
+            for img, label, index, img_idx in data:
+                N, C, H, W = img.shape
+                temp = [i / (self.control_point + 1) for i in range(self.control_point + 2)]
+                color_position = torch.tensor(temp)
+                color_position = color_position.unsqueeze(0).unsqueeze(1)
+                color_position = color_position.repeat(N, self.config.feature_num, 1)
+                color_position = torch.tensor(color_position.cuda(device))
+                # Data.
+                img = torch.tensor(img.cuda(device))
+                index = torch.tensor(index.cuda(device))
+                label = torch.tensor(label.cuda(device))
 
-            n = n + 1
-            if n % int(data.__len__() / 10) == 0:
-                sys.stdout.write('\rTest {}/{} '.format(n, data.__len__()))
-                self.f.write('Test {}/{}\n'.format(n, data.__len__()))
+                n = n + 1
+                if n % int(data.__len__() / 10) == 0:
+                    sys.stdout.write('\rTest {}/{} '.format(n, data.__len__()))
+                    self.f.write('Test {}/{}\n'.format(n, data.__len__()))
 
-            if self.modeln == 30 or self.modeln == 31:
-                pred, params = self.model(img, index, color_position)
-            else:
-                if self.config.write_text == 0:
-                    #start = time.time()
-                    pred = self.model(img, index, color_position)
-                    #end = time.time()
-                    #print(f"{end - start:.5f} sec")
+                if self.modeln == 30 or self.modeln == 31:
+                    pred, params = self.model(img, index, color_position)
                 else:
-                    pred, transform_params, offset_param, hyper_params = self.model(img, index, color_position)
-                    transform_params = transform_params.reshape(self.config.feature_num * 3)
-                    #offset_param = offset_param.reshape(self.config.feature_num * (self.config.control_point + 2))
-                    offset_param = offset_param.reshape(self.config.feature_num, (self.config.control_point + 2))
-                    hyper_params = hyper_params.reshape(self.config.feature_num * 3)
-                    
-                    transform_params = transform_params.cpu().detach().numpy()
-                    offset_param = offset_param.cpu().detach().numpy()
-                    hyper_params = hyper_params.cpu().detach().numpy()
-                    #hypers.append(hyper_params.cpu().detach().numpy())
-                    transform_params = np.array2string(transform_params)[1:-1]
-                    
-                    hyper_params = np.array2string(hyper_params)[1:-1]
-                    if self.config.rank == 0:
-                        f1.write("{}\n".format(transform_params))
-                        for i in range(0, self.config.feature_num ):
-                            offset_param_temp = np.array2string(offset_param[i,:])
-                            offset_param_temp = np.array2string(offset_param[i,:])[1:-1]
-                            f2.write("{}\n".format(offset_param_temp))
-                        f3.write("{}\n".format(hyper_params))
-                    #np.savetxt('my_file.txt', torch.Tensor([3,4,5,6]).numpy())
-            #pred = self.model(img, index, color_position)
+                    if self.config.write_text == 0:
+                        #start = time.time()
+                        pred = self.model(img, index, color_position)
+                        #end = time.time()
+                        #print(f"{end - start:.5f} sec")
+                    else:
+                        pred, transform_params, offset_param, hyper_params = self.model(img, index, color_position)
+                        transform_params = transform_params.reshape(self.config.feature_num * 3)
+                        #offset_param = offset_param.reshape(self.config.feature_num * (self.config.control_point + 2))
+                        offset_param = offset_param.reshape(self.config.feature_num, (self.config.control_point + 2))
+                        hyper_params = hyper_params.reshape(self.config.feature_num * 3)
+                        
+                        transform_params = transform_params.cpu().detach().numpy()
+                        offset_param = offset_param.cpu().detach().numpy()
+                        hyper_params = hyper_params.cpu().detach().numpy()
+                        #hypers.append(hyper_params.cpu().detach().numpy())
+                        transform_params = np.array2string(transform_params)[1:-1]
+                        
+                        hyper_params = np.array2string(hyper_params)[1:-1]
+                        if self.config.rank == 0:
+                            f1.write("{}\n".format(transform_params))
+                            for i in range(0, self.config.feature_num ):
+                                offset_param_temp = np.array2string(offset_param[i,:])
+                                offset_param_temp = np.array2string(offset_param[i,:])[1:-1]
+                                f2.write("{}\n".format(offset_param_temp))
+                            f3.write("{}\n".format(hyper_params))
+                        #np.savetxt('my_file.txt', torch.Tensor([3,4,5,6]).numpy())
+                #pred = self.model(img, index, color_position)
                 
-            if self.vgg_loss == 0:
-                loss = self.l1_loss(pred, label)
-            else:
-                loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(pred, label)
-            epoch_loss = epoch_loss + loss.detach().cpu().numpy()
+                if self.config.dataset == 'adobe5k_4k':
+                    epoch_loss = 0
+                    epoch_ssim = 0
+                    epoch_lpips = 0
+                    epoch_delta_lab = 0
+                    pred = torch.clamp(pred, 0, 1)
+                    psnr = self.PSNR(pred, label)
+                    epoch_psnr = epoch_psnr + psnr.detach().cpu().numpy()
+                    delta_lab = calculate_delta_lab(pred, label)
+                    epoch_delta_lab = epoch_delta_lab + delta_lab.detach().cpu().numpy()
+                else:
+                    if self.vgg_loss == 0:
+                        loss = self.l1_loss(pred, label)
+                    else:
+                        loss = self.l1_loss(pred, label) + self.vgg * self.vgg_criterion(pred, label)
+                    epoch_loss = epoch_loss + loss.detach().cpu().numpy()
 
-            if self.norm == 1:
-                pred = 0.5 * (pred + 1.0)
-                label = 0.5 * (label + 1.0)
-                
-            pred = torch.clamp(pred, 0, 1)
-            
-            psnr = self.PSNR(pred, label)
-            epoch_psnr = epoch_psnr + psnr.detach().cpu().numpy()
-
-            ssim = structural_similarity(pred, label)
-            epoch_ssim = epoch_ssim + ssim.detach().cpu().numpy()
+                    if self.norm == 1:
+                        pred = 0.5 * (pred + 1.0)
+                        label = 0.5 * (label + 1.0)
 
 
-            pred_lpips = pred.detach() * 2.0 - 1.0
-            label_lpips = label.detach() * 2.0 - 1.0
-            lpips = torch.mean(self.lpips_fn(pred_lpips, label_lpips).squeeze())
+                    pred = torch.clamp(pred, 0, 1)
+                    
+                    psnr = self.PSNR(pred, label)
+                    epoch_psnr = epoch_psnr + psnr.detach().cpu().numpy()
 
-            epoch_lpips = epoch_lpips + lpips.detach().cpu().numpy()
+                    ssim = structural_similarity(pred, label)
+                    epoch_ssim = epoch_ssim + ssim.detach().cpu().numpy()
 
-            delta_lab = calculate_delta_lab(pred, label)
-            epoch_delta_lab = epoch_delta_lab + delta_lab.detach().cpu().numpy()
 
-            #save_img
-            if self.saveimg != 0:
-                img_path2 = "{}/{:04d}.png".format(img_path, img_idx[0])
-                save_image(pred, img_path2)
+                    pred_lpips = pred.detach() * 2.0 - 1.0
+                    label_lpips = label.detach() * 2.0 - 1.0
+                    lpips = torch.mean(self.lpips_fn(pred_lpips, label_lpips).squeeze())
 
-        if self.config.write_text == 1 and self.config.rank == 0:
-            f1.close()
-            f2.close()
-            f3.close()
-        #print('\n{} images\n'.format(n))
-        epoch_loss = epoch_loss / n
-        epoch_psnr = epoch_psnr / n
-        epoch_ssim = epoch_ssim / n
-        epoch_lpips = epoch_lpips / n
-        epoch_delta_lab = epoch_delta_lab / n
+                    epoch_lpips = epoch_lpips + lpips.detach().cpu().numpy()
+
+                    delta_lab = calculate_delta_lab(pred, label)
+                    epoch_delta_lab = epoch_delta_lab + delta_lab.detach().cpu().numpy()
+
+
+                #save_img
+                if self.saveimg != 0:
+                    img_path2 = "{}/{:04d}.png".format(img_path, img_idx[0])
+                    save_image(pred, img_path2)
+
+            if self.config.write_text == 1 and self.config.rank == 0:
+                f1.close()
+                f2.close()
+                f3.close()
+            #print('\n{} images\n'.format(n))
+            epoch_loss = epoch_loss / n
+            epoch_psnr = epoch_psnr / n
+            epoch_ssim = epoch_ssim / n
+            epoch_lpips = epoch_lpips / n
+            epoch_delta_lab = epoch_delta_lab / n
         
         self.model.train(True)
         return epoch_loss, epoch_psnr, epoch_ssim, epoch_lpips, epoch_delta_lab
