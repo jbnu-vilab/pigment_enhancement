@@ -643,7 +643,6 @@ class solver_IE(object):
                     epoch_loss = 0
                     epoch_ssim = 0
                     epoch_lpips = 0
-                    epoch_delta_lab = 0
                     pred = torch.clamp(pred, 0, 1)
                     psnr = self.PSNR(pred, label)
                     epoch_psnr = epoch_psnr + psnr.detach().cpu().numpy()
