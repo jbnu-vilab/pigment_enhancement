@@ -592,6 +592,7 @@ class solver_IE(object):
             np.set_printoptions(precision=5)
 
         with torch.no_grad():
+            total_time = 0
             for img, label, index, img_idx in data:
                 N, C, H, W = img.shape
                 temp = [i / (self.control_point + 1) for i in range(self.control_point + 2)]
@@ -613,10 +614,10 @@ class solver_IE(object):
                     pred, params = self.model(img, index, color_position)
                 else:
                     if self.config.write_text == 0:
-                        #start = time.time()
+                        start = time.time()
                         pred = self.model(img, index, color_position)
-                        #end = time.time()
-                        #print(f"{end - start:.5f} sec")
+                        end = time.time()
+                        total_time += (end - start)
                     else:
                         pred, transform_params, offset_param, hyper_params = self.model(img, index, color_position)
                         transform_params = transform_params.reshape(self.config.feature_num * 3)
@@ -685,6 +686,8 @@ class solver_IE(object):
                 if self.saveimg != 0:
                     img_path2 = "{}/{:04d}.png".format(img_path, img_idx[0])
                     save_image(pred, img_path2)
+
+            print(total_time / 500)
 
             if self.config.write_text == 1 and self.config.rank == 0:
                 f1.close()
