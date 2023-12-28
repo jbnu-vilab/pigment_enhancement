@@ -195,6 +195,8 @@ class solver_IE(object):
             self.model = models_proposed.DCPNet30(config).cuda()
         elif config.model == 240:
             self.model = models_proposed.DCPNet240(config).cuda()
+        elif config.model == 241:
+            self.model = models_proposed.DCPNet24_2(config).cuda()
             
         pytorch_total_params = sum(p.numel() for p in self.model.parameters())
         pytorch_total_params2 = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
