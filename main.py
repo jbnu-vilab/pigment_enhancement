@@ -308,8 +308,8 @@ if __name__ == '__main__':
     
     parser.add_argument("--write_text", dest='write_text', type=int, default=0)
     
-    parser.add_argument("--fc_node1", dest='fc_node1', type=int, default=1024)
-    parser.add_argument("--fc_node2", dest='fc_node2', type=int, default=1024)
+    parser.add_argument("--fc_node1", dest='fc_node1', type=int, default=128)
+    parser.add_argument("--fc_node2", dest='fc_node2', type=int, default=128)
     
     config = parser.parse_args()
     num_device = torch.cuda.device_count()
