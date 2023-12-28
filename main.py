@@ -169,7 +169,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', dest='lr', type=float, default=1e-4, help='Learning rate')
     parser.add_argument('--weight_decay', dest='weight_decay', type=float, default=1e-5, help='Weight decay')
     parser.add_argument('--batch_size', dest='batch_size', type=int, default=8, help='Batch size')
-    parser.add_argument('--epochs', dest='epochs', type=int, default=100, help='Epochs for training')
+    parser.add_argument('--epochs', dest='epochs', type=int, default=400, help='Epochs for training')
     parser.add_argument('--patch_size', dest='patch_size', type=int, default=256, help='Crop size for training & testing image patches')
     parser.add_argument("--test", type=bool, default=False)
     parser.add_argument("--use_cuda", type=bool, default=True)
@@ -188,7 +188,7 @@ if __name__ == '__main__':
     parser.add_argument("--global", dest='global_m', type=int, default=1)
     parser.add_argument("--residual", dest='residual', type=int, default=0)
 
-    parser.add_argument("--control_point", dest='control_point', type=int, default=14)
+    parser.add_argument("--control_point", dest='control_point', type=int, default=30)
 
 
     parser.add_argument("--total_variation", dest='total_variation', type=float, default=0.0)
@@ -231,7 +231,7 @@ if __name__ == '__main__':
     
     parser.add_argument("--res_mode", dest='res_mode', type=int, default=0)
 
-    parser.add_argument("--hyper", dest='hyper', type=int, default=0)
+    parser.add_argument("--hyper", dest='hyper', type=int, default=1)
     parser.add_argument("--conv_mode", dest='conv_mode', type=int, default=1)
 
     parser.add_argument("--xoffset", dest='xoffset', type=int, default=0)
@@ -241,7 +241,7 @@ if __name__ == '__main__':
     parser.add_argument("--act_mode", dest='act_mode', type=str, default='sigmoid')
     parser.add_argument("--backbone", dest='backbone', type=str, default='res')
 
-    parser.add_argument("--res_num", dest='res_num', type=int, default=34)
+    parser.add_argument("--res_num", dest='res_num', type=int, default=18)
     parser.add_argument("--lrratio", dest='lrratio', type=int, default=1)
 
     #parser.add_argument("--res_size", dest='res_size', type=int, default=224)
@@ -253,7 +253,7 @@ if __name__ == '__main__':
     parser.add_argument("--transform_num", dest='transform_num', type=int, default=1)
 
     parser.add_argument("--hyper2", dest='hyper2', type=int, default=1)
-    parser.add_argument("--last_hyper", dest='last_hyper', type=int, default=0)
+    parser.add_argument("--last_hyper", dest='last_hyper', type=int, default=1)
 
     parser.add_argument("--mid_conv", dest='mid_conv', type=int, default=2)
     parser.add_argument("--mid_conv_size", dest='mid_conv_size', type=int, default=1)
@@ -278,7 +278,7 @@ if __name__ == '__main__':
     parser.add_argument("--fc_num", dest='fc_num', type=int, default=2)
     
     parser.add_argument("--upsample_mode", dest='upsample_mode', type=int, default=1)
-    parser.add_argument("--parallel", dest='parallel', type=int, default=0)
+    parser.add_argument("--parallel", dest='parallel', type=int, default=1)
 
     parser.add_argument("--local-rank", dest='local-rank', type=int, default=0)
     parser.add_argument("--local_rank", dest='local_rank', type=int, default=0)
@@ -286,7 +286,7 @@ if __name__ == '__main__':
     parser.add_argument("--model_loss", dest='model_loss', type=float, default=0)
     parser.add_argument("--model_loss_type", dest='model_loss_type', type=int, default=1)
     parser.add_argument("--init_w", dest='init_w', type=int, default=-1)
-    parser.add_argument("--new_res", dest='new_res', type=int, default=0)
+    parser.add_argument("--new_res", dest='new_res', type=int, default=1)
     parser.add_argument("--trans_param", dest='trans_param', type=float, default=5.0)
 
     parser.add_argument("--learnable_trans_param", dest='learnable_trans_param', type=int, default=0)
@@ -298,7 +298,7 @@ if __name__ == '__main__':
     parser.add_argument("--init_w2", dest='init_w2', type=int, default=2)
     parser.add_argument("--last_conv_init", dest='last_conv_init', type=int, default=0)
     parser.add_argument("--last_conv_bias", dest='last_conv_bias', type=int, default=1)
-    parser.add_argument("--init_w_last", dest='init_w_last', type=int, default=0)
+    parser.add_argument("--init_w_last", dest='init_w_last', type=int, default=1)
     #parser.add_argument("--dist_url", dest='dist_url', type=str, default="tcp://127.0.0.1:23456")
     
     parser.add_argument("--antialias", dest='antialias', type=int, default=0)
