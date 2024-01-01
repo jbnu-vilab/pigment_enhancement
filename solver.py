@@ -197,6 +197,8 @@ class solver_IE(object):
             self.model = models_proposed.DCPNet240(config).cuda()
         elif config.model == 241:
             self.model = models_proposed.DCPNet24_2(config).cuda()
+        elif config.model == 244:
+            self.model = models_proposed.DCPNet24_4K(config).cuda()
             
         pytorch_total_params = sum(p.numel() for p in self.model.parameters())
         pytorch_total_params2 = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
@@ -433,6 +435,8 @@ class solver_IE(object):
 
                 if self.modeln == 30 or self.modeln == 31:
                     pred, params = self.model(img, index, color_position)
+                elif self.modeln == 244:
+                    pred = self.model(img, index, color_position, is_train=1)
                 else:
                     pred = self.model(img, index, color_position)
                 if self.vgg_loss == 0:
@@ -612,6 +616,8 @@ class solver_IE(object):
 
                 if self.modeln == 30 or self.modeln == 31:
                     pred, params = self.model(img, index, color_position)
+                elif self.modeln == 244:
+                    pred = self.model(img, index, color_position, is_train=0)
                 else:
                     if self.config.write_text == 0:
                         start = time.time()
@@ -643,6 +649,15 @@ class solver_IE(object):
                 #pred = self.model(img, index, color_position)
                 
                 if self.config.dataset == 'adobe5k_4k':
+                    epoch_loss = 0
+                    epoch_ssim = 0
+                    epoch_lpips = 0
+                    pred = torch.clamp(pred, 0, 1)
+                    psnr = self.PSNR(pred, label)
+                    epoch_psnr = epoch_psnr + psnr.detach().cpu().numpy()
+                    delta_lab = calculate_delta_lab(pred, label)
+                    epoch_delta_lab = epoch_delta_lab + delta_lab.detach().cpu().numpy()
+                elif self.config.dataset == 'adobe5k_4k2':
                     epoch_loss = 0
                     epoch_ssim = 0
                     epoch_lpips = 0

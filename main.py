@@ -96,6 +96,7 @@ def main(config):
     folder_path = {
         'adobe5k': '../DB/Enhancement_DB/Adobe5k_480p_train_test/',
         'adobe5k_4k': '../DB/Enhancement_DB/Adobe5k_train_test_4K/',
+        'adobe5k_4k2': '../DB/Enhancement_DB/Adobe5k_train_test_4K_3/',
         'adobe5k_tone': '../DB/Enhancement_DB/Adobe5k_tonemapping_train_test/',
         'adobe5k2': '../DB/Enhancement_DB/Adobe5k_480p_train_test/',
         'LOL': '../DB/Enhancement_DB/LOLdataset/',
