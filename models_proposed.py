@@ -1279,7 +1279,7 @@ class DCPNet24_4K(nn.Module):
         elif is_train == 0:
             div_img = 2
             N2, C2, H2, W2 = org_img.shape
-            org_img2 = org_img.detach()
+            org_img2 = org_img.clone().detach()
             
             for i in range(0,div_img):
                 for j in range(0,div_img):
@@ -1308,7 +1308,7 @@ class DCPNet24_4K(nn.Module):
                         org_img = org_img.reshape(N,self.feature_num,H,W)
 
                         
-                        for i in range(0,self.transform_num):
+                        for i2 in range(0,self.transform_num):
                             plus_idx = self.control_point_num * self.feature_num
                             if self.xoffset == 1:
                                 plus_idx += ((self.control_point_num - 2) * self.feature_num)

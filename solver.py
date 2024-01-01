@@ -662,6 +662,8 @@ class solver_IE(object):
                     epoch_ssim = 0
                     epoch_lpips = 0
                     pred = torch.clamp(pred, 0, 1)
+                    #pred = pred.detach.cpu()
+                    #label = label.detach.cpu()
                     psnr = self.PSNR(pred, label)
                     epoch_psnr = epoch_psnr + psnr.detach().cpu().numpy()
                     delta_lab = calculate_delta_lab(pred, label)
