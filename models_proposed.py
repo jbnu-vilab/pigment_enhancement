@@ -1275,56 +1275,48 @@ class DCPNet24_4K(nn.Module):
             if self.write_text == 0:
                 return org_img
             else:
-                return org_img, transform_params, offset_param, hyper_param
+                return org_img, transform_params, offset_param, hyper_params
         elif is_train == 0:
             div_img = 2
             N2, C2, H2, W2 = org_img.shape
             org_img2 = org_img.clone().detach()
-            
+            if self.hyper_conv == 1:
+                cur_idx = 3 * self.feature_num
+            transform_params = self.cls_output[:,:cur_idx]
+            if self.hyper_conv == 1:
+                transform_params = transform_params.reshape(N * self.feature_num, 3)
+            if self.act_mode == 'sigmoid':
+                transform_params = self.sigmoid(self.trans_param * transform_params)
+                epsilon = 1e-10
+                t_sum = torch.sum(transform_params, dim=1, keepdim=True)
+                transform_params = transform_params / (t_sum + epsilon)  
+                if self.hyper_conv == 1:
+                    transform_params = transform_params.reshape(N * self.feature_num, 3, 1, 1)
+            plus_idx = self.control_point_num * self.feature_num
+            if self.xoffset == 1:
+                plus_idx += ((self.control_point_num - 2) * self.feature_num)
+            elif self.xoffset == 2:
+                plus_idx += ((self.control_point_num - 1) * self.feature_num)
+            offset_param = self.cls_output[:,cur_idx:cur_idx + plus_idx]
+            cur_idx += plus_idx
+            hyper_params = self.cls_output[:,cur_idx:]
+            hyper_params = hyper_params.reshape(N * 3, self.feature_num, 1, 1)
+            hyper_params /= self.feature_num
             for i in range(0,div_img):
                 for j in range(0,div_img):
                     org_img = org_img2[:,:,round(H2/div_img * i):round(H2/div_img * (i+1)), round(W2/div_img * j):round(W2/div_img * (j+1)) ]
                     N, C, H, W = org_img.shape
                     if self.hyper == 1:
-                        if self.hyper_conv == 1:
-                            cur_idx = 3 * self.feature_num
-                        transform_params = self.cls_output[:,:cur_idx]
-                        if self.hyper_conv == 1:
-                            transform_params = transform_params.reshape(N * self.feature_num, 3)
-                        if self.act_mode == 'sigmoid':
-                            transform_params = self.sigmoid(self.trans_param * transform_params)
-                            epsilon = 1e-10
-                            t_sum = torch.sum(transform_params, dim=1, keepdim=True)
-                            transform_params = transform_params / (t_sum + epsilon)
-                        
-                        if self.hyper_conv == 1:
-                            transform_params = transform_params.reshape(N * self.feature_num, 3, 1, 1)
-                    
                         org_img = org_img.reshape(1, N * 3, H, W)
-                    
+                
                         if self.hyper_conv == 1:
                             org_img = F.conv2d(input=org_img, weight=transform_params, groups=N)
 
                         org_img = org_img.reshape(N,self.feature_num,H,W)
-
-                        
-                        for i2 in range(0,self.transform_num):
-                            plus_idx = self.control_point_num * self.feature_num
-                            if self.xoffset == 1:
-                                plus_idx += ((self.control_point_num - 2) * self.feature_num)
-                            elif self.xoffset == 2:
-                                plus_idx += ((self.control_point_num - 1) * self.feature_num)
-                            offset_param = self.cls_output[:,cur_idx:cur_idx + plus_idx]
-                            cur_idx += plus_idx
-                            org_img = self.colorTransform(org_img, offset_param, index_image, color_map_control)
-
+                        org_img = self.colorTransform(org_img, offset_param, index_image, color_map_control)
                     if self.mid_conv > 0:
                         org_img = self.mid_conv_module(org_img)
                     if self.last_hyper == 1:
-                        hyper_params = self.cls_output[:,cur_idx:]
-                        hyper_params = hyper_params.reshape(N * 3, self.feature_num, 1, 1)
-                        hyper_params /= self.feature_num
-
                         org_img = org_img.reshape(1, N * self.feature_num, H, W)
                         org_img = F.conv2d(input=org_img, weight=hyper_params, groups=N)
                         org_img = org_img.reshape(N,3,H,W)
@@ -4438,6 +4430,10 @@ class resnet18_224_2(nn.Module):
                     initialize_weights_part(self.fc4)
                     torch.nn.init.constant_(self.fc4[2].weight.data, 0)
                     torch.nn.init.constant_(self.fc4[2].bias.data, 1.0/64.0)
+                elif init_w_last == 3:
+                    initialize_weights_part(self.fc4)
+                    torch.nn.init.constant_(self.fc4[2].weight.data, 0)
+                    torch.nn.init.constant_(self.fc4[2].bias.data, 1.0)
 
             if init_w > 0:
                 initialize_weights_part(net.fc)
@@ -4500,6 +4496,10 @@ class resnet18_224_2(nn.Module):
                         initialize_weights_part(self.fc4)
                         torch.nn.init.constant_(self.fc4[2].weight.data, 0)
                         torch.nn.init.constant_(self.fc4[2].bias.data, 1.0/64.0)
+                    elif init_w_last == 3:
+                        initialize_weights_part(self.fc4)
+                        torch.nn.init.constant_(self.fc4[2].weight.data, 0)
+                        torch.nn.init.constant_(self.fc4[2].bias.data, 1.0)
 
                 if init_w > 0:
                     initialize_weights_part(net.fc)
