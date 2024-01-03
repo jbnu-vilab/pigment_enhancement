@@ -617,7 +617,10 @@ class solver_IE(object):
                 if self.modeln == 30 or self.modeln == 31:
                     pred, params = self.model(img, index, color_position)
                 elif self.modeln == 244:
+                    start = time.time()
                     pred = self.model(img, index, color_position, is_train=0)
+                    end = time.time()
+                    total_time += (end - start)
                 else:
                     if self.config.write_text == 0:
                         start = time.time()
