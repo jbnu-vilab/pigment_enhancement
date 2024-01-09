@@ -622,6 +622,21 @@ class DCPNet24(nn.Module):
                 pad1 = 0
                 bn1 = True
                 conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=ksize1, stride=1, pad=pad1, extra_conv=False, act=act1, bn=bn1))
+            
+            elif config.mid_conv_mode == 'conv3':
+                lists = []
+                lists += [nn.Conv2d(self.feature_num, self.feature_num, kernel_size=(1, 1), stride=(1, 1), padding=(0, 0))]
+                lists += [nn.InstanceNorm2d(self.feature_num)]
+                lists += [nn.ReLU()]
+                mod = nn.Sequential(*lists)
+                conv_list.append(mod)
+                lists = []
+                lists += [nn.Conv2d(self.feature_num, self.feature_num, kernel_size=(1, 1), stride=(1, 1), padding=(0, 0))]
+                lists += [nn.InstanceNorm2d(self.feature_num)]
+                lists += [nn.ReLU()]
+                mod = nn.Sequential(*lists)
+                conv_list.append(mod)
+                break
         if self.mid_conv > 0:
             self.mid_conv_module = nn.Sequential(*conv_list)
         if config.xoffset == 0:
