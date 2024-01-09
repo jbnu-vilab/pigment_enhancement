@@ -566,7 +566,7 @@ class DCPNet24(nn.Module):
                     conv_list.append(resBlock2(self.feature_num, self.feature_num, ksize=1, stride=1, pad=0, extra_conv=False, act='relu'))
             elif config.mid_conv_mode == 'res2':
                     conv_list.append(resBlock3(self.feature_num, self.feature_num, ksize=3, stride=1, pad=1, extra_conv=False, act='relu'))
-            else:
+            elif config.mid_conv_mode == 'conv':
                 if config.mid_conv_size == 3:
                     ksize1 = 3
                     pad1 = 1
@@ -583,6 +583,44 @@ class DCPNet24(nn.Module):
                     else:
                         act1 = 'none'
                         bn1 = False
+                conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=ksize1, stride=1, pad=pad1, extra_conv=False, act=act1, bn=bn1))
+            elif config.mid_conv_mode == 'bottleneck1':
+                lists = []
+                hidden_feature = 256
+                
+                lists += [nn.Conv2d(self.feature_num, hidden_feature, kernel_size=(1, 1), stride=(1, 1), padding=(0, 0))]
+                lists += [nn.BatchNorm2d(hidden_feature)]
+                lists += [nn.ReLU()]
+                mod = nn.Sequential(*lists)
+                conv_list.append(mod)
+                lists = []
+                lists += [nn.Conv2d(hidden_feature, self.feature_num, kernel_size=(1, 1), stride=(1, 1), padding=(0, 0))]
+                lists += [nn.BatchNorm2d(self.feature_num)]
+                lists += [nn.ReLU()]
+                mod = nn.Sequential(*lists)
+                conv_list.append(mod)
+                break
+            elif config.mid_conv_mode == 'bottleneck2':
+                lists = []
+                hidden_feature = 32
+                lists += [nn.Conv2d(self.feature_num, hidden_feature, kernel_size=(1, 1), stride=(1, 1), padding=(0, 0))]
+                lists += [nn.BatchNorm2d(hidden_feature)]
+                lists += [nn.ReLU()]
+                mod = nn.Sequential(*lists)
+                conv_list.append(mod)
+                lists = []
+                lists += [nn.Conv2d(hidden_feature, self.feature_num, kernel_size=(1, 1), stride=(1, 1), padding=(0, 0))]
+                lists += [nn.BatchNorm2d(self.feature_num)]
+                lists += [nn.ReLU()]
+                mod = nn.Sequential(*lists)
+                conv_list.append(mod)
+                break
+                
+            elif config.mid_conv_mode == 'conv2':
+                act1 = config.act
+                ksize1 = 1
+                pad1 = 0
+                bn1 = True
                 conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=ksize1, stride=1, pad=pad1, extra_conv=False, act=act1, bn=bn1))
         if self.mid_conv > 0:
             self.mid_conv_module = nn.Sequential(*conv_list)
