@@ -204,7 +204,7 @@ class solver_IE(object):
         pytorch_total_params2 = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         
         pytorch_total_params3 = sum(p.numel() for p in self.model.classifier.parameters())
-        pytorch_total_params4 = sum(p.numel() for p in self.model.mid_conv_module.parameters())
+        #pytorch_total_params4 = sum(p.numel() for p in self.model.mid_conv_module.parameters())
         
         if config.parallel > 0:
             self.model = self.model.cuda(config.rank)
