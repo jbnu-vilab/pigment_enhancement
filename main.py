@@ -122,7 +122,10 @@ def main(config):
     else:
         print('we are using the seed = {}'.format(config.seed))
         torch.manual_seed(config.seed)
-        torch.cuda.manual_seed(config.seed)
+        if config.parallel == 0:
+            torch.cuda.manual_seed(config.seed)
+        else:
+            torch.cuda.manual_seed_all(config.seed)
         np.random.seed(config.seed)
         random.seed(config.seed)
 
