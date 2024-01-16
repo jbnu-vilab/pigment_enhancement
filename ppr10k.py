@@ -11,6 +11,14 @@ import torchvision.transforms as transforms
 import torchvision.transforms.functional as TF
 import torchvision_x_functional as TF_x
 
+
+class RandomRotate90(object):
+    def __call__(self, sample):
+        image = sample
+        deg = random.randint(0, 3)
+        image = torch.rot90(image, deg, [1, 2])
+        return image
+    
 class ImageDataset_paper(Dataset):
     def __init__(self, root, mode="train", use_mask=False, retoucher = 'A', loader_size=448, div=1):
         self.mode = mode
@@ -75,15 +83,27 @@ class ImageDataset_paper(Dataset):
             img_exptC = TF.resized_crop(img_exptC, i, j, h, w, (self.loader_size, self.loader_size))
             if self.use_mask:
                 img_mask = TF.resized_crop(img_mask, i, j, h, w, (self.loader_size, self.loader_size))
+            if self.div == 1:
+                if np.random.random() > 0.5:
+                    img_input = TF_x.hflip(img_input)
+                    img_exptC = TF.hflip(img_exptC)
+                    if self.use_mask:
+                        img_mask = TF.hflip(img_mask)
+                img_input = TF_x.to_tensor(img_input)
+                img_exptC = TF.to_tensor(img_exptC)
+            elif self.div == 2:
+                img_input = TF_x.to_tensor(img_input)
+                img_exptC = TF.to_tensor(img_exptC)
+                img_temp = torch.cat((img_input,img_exptC), dim=0)
+                transforms_A = transforms.Compose([
+                    transforms.RandomHorizontalFlip(),
+                    transforms.RandomVerticalFlip(),
+                    RandomRotate90()])
+                img_temp = transforms_A(img_temp)
+                img_input = img_temp[:3,:,:]
+                img_exptC = img_temp[3:,:,:]
 
-            if np.random.random() > 0.5:
-                img_input = TF_x.hflip(img_input)
-                img_exptC = TF.hflip(img_exptC)
-                if self.use_mask:
-                    img_mask = TF.hflip(img_mask)
-
-        img_input = TF_x.to_tensor(img_input)
-        img_exptC = TF.to_tensor(img_exptC)
+        
         #if self.mode == "test":
         #    _, h, w = img_input.shape
         #    if (h % self.div) or (w % self.div):
