@@ -84,13 +84,13 @@ class ImageDataset_paper(Dataset):
 
         img_input = TF_x.to_tensor(img_input)
         img_exptC = TF.to_tensor(img_exptC)
-        if self.mode == "test":
-            _, h, w = img_input.shape
-            if (h % self.div) or (w % self.div):
-                nH = (h // self.div) * self.div
-                nW = (w // self.div) * self.div
-                img_input = TF.resize(img_input, (nH, nW))
-                img_exptC = TF.resize(img_exptC, (nH, nW))
+        #if self.mode == "test":
+        #    _, h, w = img_input.shape
+        #    if (h % self.div) or (w % self.div):
+        #        nH = (h // self.div) * self.div
+        #        nW = (w // self.div) * self.div
+        #        img_input = TF.resize(img_input, (nH, nW))
+        #        img_exptC = TF.resize(img_exptC, (nH, nW))
         color_map = torch.zeros(3, 256)
         for i in range(0,256):
             color_map[:,i] = i

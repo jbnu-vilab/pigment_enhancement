@@ -957,8 +957,16 @@ class DCPNet24(nn.Module):
             img_f_t = img_f_t.reshape(1, N * self.feature_num, H, W)
             out_img = F.conv2d(input=img_f_t, weight=hyper_params, groups=N)
             out_img = out_img.reshape(N,3,H,W)
-        else:
+        elif self.last_hyper == 0:
             out_img = self.conv_out(img_f_t)
+        elif self.last_hyper == 2:
+            transform_params = transform_params.reshape(N, self.feature_num, 3)
+            inverse_params = torch.linalg.pinv(transform_params)
+            #z = torch.matmul(inverse_params, transform_params)
+            inverse_params = inverse_params.reshape(N * 3, self.feature_num, 1, 1)
+            img_f_t = img_f_t.reshape(1, N * self.feature_num, H, W)
+            out_img = F.conv2d(input=img_f_t, weight=inverse_params, groups=N)
+            out_img = out_img.reshape(N,3,H,W)
 
         if self.quad == 2 or self.quad == 3:
             gamma_params = self.cls_output[:,cur_idx:cur_idx + self.feature_num]
