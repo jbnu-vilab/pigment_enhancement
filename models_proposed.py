@@ -649,6 +649,8 @@ class DCPNet24(nn.Module):
             self.colorTransform = colorTransform_xoffset(self.control_point_num, config.offset_param, config.offset_param2, config)
         elif config.xoffset == 2:
             self.colorTransform = colorTransform_xoffset_softmax(self.control_point_num, config.offset_param, config.offset_param2, config)
+        elif config.xoffset == -100:
+            self.colorTransform = colorTransform_no(self.control_point_num, config.offset_param, config)
         if config.conv_mode == 3:
             self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda(config.rank)
         elif config.conv_mode == 1:
@@ -1948,7 +1950,10 @@ class DCPNet240(nn.Module):
                 conv_list.append(convBlock2(self.feature_num, self.feature_num, ksize=ksize1, stride=1, pad=pad1, extra_conv=False, act=act1, bn=bn1))
         if self.mid_conv > 0:
             self.mid_conv_module = nn.Sequential(*conv_list)
-        self.colorTransform = colorTransform3(self.control_point_num, config.offset_param, config)
+        if config.xoffset == 0:
+            self.colorTransform = colorTransform3(self.control_point_num, config.offset_param, config)
+        elif config.xoffset == -100:
+            self.colorTransform = colorTransform_no(self.control_point_num, config.offset_param, config)
 
         if config.conv_mode == 3:
             self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=3, stride=1, padding=1).cuda(config.rank)
@@ -3807,6 +3812,14 @@ class colorTransform3(nn.Module):
         out_img_reshaped = out_img_reshaped.reshape(N, C, H, W)
         return out_img_reshaped
 
+
+class colorTransform_no(nn.Module):
+    def __init__(self, control_point=16, offset_param=0.04, config=0):
+        super(colorTransform_no, self).__init__()
+        self.config = config
+
+    def forward(self, org_img, params, color_mapping_global_a, color_map_control):
+        return org_img
 
 class colorTransform31(nn.Module):
     def __init__(self, control_point=16, offset_param=0.04, config=0):
