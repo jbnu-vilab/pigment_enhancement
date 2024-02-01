@@ -122,10 +122,13 @@ def main(config):
     else:
         print('we are using the seed = {}'.format(config.seed))
         torch.manual_seed(config.seed)
-        if config.parallel == 0:
-            torch.cuda.manual_seed(config.seed)
+        if config.seed_opt == 0:
+            if config.parallel == 0:
+                torch.cuda.manual_seed(config.seed)
+            else:
+                torch.cuda.manual_seed_all(config.seed)
         else:
-            torch.cuda.manual_seed_all(config.seed)
+            torch.cuda.manual_seed(config.seed)
         np.random.seed(config.seed)
         random.seed(config.seed)
 
@@ -211,6 +214,8 @@ if __name__ == '__main__':
     parser.add_argument("--gamma_param", dest='gamma_param', type=float, default=0.1)
     parser.add_argument("--jitter", type=int, default=0)
     parser.add_argument("--lpips", dest='lpips', type=int, default=1)
+
+    parser.add_argument("--seed_opt", dest='seed_opt', type=int, default=0)
 
 
     parser.add_argument("--fix_mode", dest='fix_mode', type=int, default=0)
