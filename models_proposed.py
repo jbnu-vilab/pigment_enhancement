@@ -538,7 +538,7 @@ class DCPNet24(nn.Module):
             if config.new_res == 0:
                 self.classifier = resnet18_224(out_dim=param_num, res_size=config.res_size, res_num=config.res_num, fc_num=config.fc_num)
             elif config.new_res == 1:
-                self.classifier = resnet18_224_2(out_dim=param_num, out_dim2=0, out_dim3=param_xoffset, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num,
+                self.classifier = resnet18_224_2(out_dim=param_num1, out_dim2=0, out_dim3=param_xoffset, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num,
                                                fc_num=config.fc_num, init_w=config.init_w, init_w2=config.init_w2, init_w_last=config.init_w_last, fc_node=config.fc_node, fc_node1=config.fc_node1, fc_node2=config.fc_node2)
             self.params = nn.Parameter(torch.randn(self.feature_num, 3, 1, 1))
         elif self.hyper == 1:
@@ -825,7 +825,8 @@ class DCPNet24(nn.Module):
             img_f = F.conv2d(input=org_img, weight=norm_params)
             if self.act_mode == 'tanh':
                 img_f = (img_f + 1) / 2
-            img_f_t = self.colorTransform(img_f, self.cls_output, index_image, color_map_control)
+            cur_idx = self.control_point_num * self.feature_num
+            img_f_t = self.colorTransform(img_f, self.cls_output[:,:cur_idx], index_image, color_map_control)
             if self.act_mode == 'tanh':
                 img_f_t = img_f_t * 2 -1
         elif self.hyper == 1:
