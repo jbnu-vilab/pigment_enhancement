@@ -570,7 +570,8 @@ class solver_IE(object):
                         path = "./model/{}_best.pth".format(self.log[:-4])
                         torch.save(save_dict, path)
                     
-                    if best_delta_lab3 == test_delta_lab:
+                    #if best_delta_lab3 == test_delta_lab:
+                    if best_ssim2 == test_ssim:
                         # model save
                         path = "./model/{}_best2.pth".format(self.log[:-4])
                         torch.save(save_dict, path)
