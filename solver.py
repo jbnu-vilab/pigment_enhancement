@@ -345,6 +345,25 @@ class solver_IE(object):
                 self.best_delta_lab = checkpoint["best_delta_lab"]
             else:
                 self.best_delta_lab = 100
+        elif config.resume == 4: # resume to the best epoch
+            if self.parallel > 0:
+                checkpoint = torch.load('./model/{}_best3.pth'.format(self.log[:-4]))
+            else:
+                checkpoint = torch.load('./model/{}_best3.pth'.format(self.log[:-4]))
+                #checkpoint = torch.load('./model/{}_best.pth'.format(self.log[:-4]), map_location='cuda:0')
+
+            self.model.load_state_dict(checkpoint["model"], strict=False)
+            self.optimizer.load_state_dict(checkpoint["optimizer"])
+            self.start_epoch = checkpoint["epoch"]
+            self.best_psnr = checkpoint["best_psnr"]
+            self.best_loss = checkpoint["best_loss"]
+            self.best_ssim = checkpoint["best_ssim"]
+            self.best_lpips = checkpoint["best_lpips"]
+            self.best_epoch = checkpoint["best_epoch"]
+            if 'best_delta_lab' in checkpoint.keys():
+                self.best_delta_lab = checkpoint["best_delta_lab"]
+            else:
+                self.best_delta_lab = 100
 
         else:
             self.start_epoch = 0
@@ -569,13 +588,15 @@ class solver_IE(object):
                         # model save
                         path = "./model/{}_best.pth".format(self.log[:-4])
                         torch.save(save_dict, path)
-                    
-                    #if best_delta_lab3 == test_delta_lab:
+
                     if best_ssim2 == test_ssim:
                         # model save
                         path = "./model/{}_best2.pth".format(self.log[:-4])
                         torch.save(save_dict, path)
-
+                    if best_delta_lab3 == test_delta_lab:
+                        # model save
+                        path = "./model/{}_best3.pth".format(self.log[:-4])
+                        torch.save(save_dict, path)
 
                     print('Best test loss %f, PSNR %f SSIM %f LPIPS %f Delta_LAB %f' % (best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab))
                     self.f.write('Best test loss %f, PSNR %f SSIM %f LPIPS %f Delta_LAB %f\n' % (best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab))
