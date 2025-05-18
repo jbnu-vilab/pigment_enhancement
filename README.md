@@ -18,7 +18,8 @@ To train a model from scratch, simply run:
 ```
 CUDA_VISIBLE_DEVICES=0 python main.py
 ```
-for the Adobe5K dataset,
+for the Adobe5K dataset.
 
-The dataset should be placed at '../DB/Enhancement_DB/Adobe5k_480p_train_test/'
+The dataset should be placed at `../DB/Enhancement_DB/Adobe5k_480p_train_test/`.
 
+We will update this repository soon to include test scripts, pretrained model weights, and detailed instructions for reproducing the results.
