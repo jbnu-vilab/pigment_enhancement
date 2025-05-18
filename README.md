@@ -12,120 +12,13 @@ Se-Ho Lee, Keunsoo Ko, Seung-Wook Kim
 This paper presents a novel and efficient image enhancement method based on pigment representation. Unlike conventional methods where the color transformation is restricted to pre-defined color spaces like RGB, our method dynamically adapts to input content by transforming RGB colors into a high-dimensional feature space referred to as \textit{pigments}. The proposed pigment representation offers adaptability and expressiveness, achieving superior image enhancement performance. The proposed method involves transforming input RGB colors into high-dimensional pigments, which are then reprojected individually and blended to refine and aggregate the information of the colors in pigment spaces. Those pigments are then transformed back into RGB colors to generate an enhanced output image. The transformation and reprojection parameters are derived from the visual encoder which adaptively estimates such parameters based on the content in the input image. Extensive experimental results demonstrate the superior performance of the proposed method over state-of-the-art methods in image enhancement tasks, including image retouching and tone mapping, while maintaining relatively low computational complexity and small model size.
 
 
-<p align="center"><img src="./figures/cost.png" width="55%" ></p>
-
-
-## Environments
-
-First you have to make sure that you have installed all dependencies. To do so, you can create an anaconda environment called `esdnet` using
-
-```
-conda env create -f environment.yaml
-conda activate esdnet
-```
-
-Our implementation has been tested on one NVIDIA 3090 GPU with cuda 11.2.
-
-## Quick Test
-
-Once you have installed all dependencies, you can try a quick test without downloading training dataset:
-
-### 1. Download our pre-trained models:
-We provide pre-trained models on four datasets, which can be downloaded through the following links:
-| **Model Name** |  **Training Dataset** | **Download Link** |
-| :---------: |  :---------: | :---------------: |
-|    ESDNet  |   UHDM  | [uhdm_checkpoint.pth](https://drive.google.com/file/d/1HT_ubcAYRqzFIJ46XuPhrulJk2YFBIEl/view?usp=sharing) |
-|    ESDNet-L  |   UHDM  | [uhdm_large_checkpoint.pth](https://drive.google.com/file/d/1PyCLCytsu4F8gEk_04a8Qs7pcsHazAie/view?usp=sharing) |
-|    ESDNet  |   FHDMi  | [fhdmi_checkpoint.pth](https://drive.google.com/file/d/19GaA5F7aTUUrgZig4qlR8ISe23mPc8m_/view?usp=sharing) |
-|    ESDNet-L |   FHDMi  | [fhdmi_large_checkpoint.pth](https://drive.google.com/file/d/1Fwx0b2jJHgx4cgqrd8d_4er2UGYbZO0s/view?usp=sharing) |
-|    ESDNet |   TIP2018  | [tip_checkpoint.pth](https://drive.google.com/file/d/1CcYDakV9r6sZTsJvdkzC-uutAlOrexW8/view?usp=sharing) |
-|    ESDNet-L  |   TIP2018  | [tip_large_checkpoint.pth](https://drive.google.com/file/d/1oqmpBM-3gDwEKRMKoS6cKT0-3_EzBPAf/view?usp=sharing) |
-|    ESDNet |   LCDMoire  | [aim_checkpoint.pth](https://drive.google.com/file/d/1WWFz-BYpW9QAwGGSy7hVPSDNT0DARnhZ/view?usp=sharing) |
-|    ESDNet-L |   LCDMoire  | [aim_large_checkpoint.pth](https://drive.google.com/file/d/114EDQnJ0AUEGiXFmA9Hiwj_m7sj1KyNW/view?usp=sharing) |
-
-Or you can simply run the following command for automatic downloading:
-
-```
-bash scripts/download_model.sh
-```
-
-Then the checkpoints will be included in the folder `pretrain_model/`. 
-
-### 2. Test with your own images:
-Change the configuration file `./demo_config/demo.yaml` to fit your own setting, and then simply run:
-
-```
-python demo_test.py --config ./demo_config/demo.yaml
-```
-
-the output images will be included in the path depending on the flags `SAVE_PREFIX` and `EXP_NAME` in your configuration file. 
-
-## Dataset
-![Data](./figures/dataset.png)
-We provide the 4K dataset UHDM for you to evaluate a pretrained model or train a new model.
-To this end, you can download them [here](https://drive.google.com/drive/folders/1DyA84UqM7zf3CeoEBNmTi_dJ649x2e7e?usp=sharing), 
-or you can simply run the following command for automatic data downloading:
-```
-bash scripts/download_data.sh
-```
-Then the dataset will be available in the folder `uhdm_data/`.
-
 ## Train
 To train a model from scratch, simply run:
 
 ```
-python train.py --config CONFIG.yaml
+CUDA_VISIBLE_DEVICES=0 python main.py
 ```
-where you replace `CONFIG.yaml` with the name of the configuration file you want to use.
-We have included configuration files for each dataset under the folder `config/`.
+for the Adobe5K dataset,
 
-For example, if you want to train our lightweight model ESDNet on UHDM dataset, run:
-```
-python train.py --config ./config/uhdm_config.yaml
-```
-   
-
-## Test
-To test a model, you can also simply run:
-
-```
-python test.py --config CONFIG.yaml
-```
-
-where you need to specify the value of `TEST_EPOCH` in the `CONFIG.yaml` to evaluate a model trained after specific epochs, 
-or you can also specify the value of `LOAD_PATH` to directly load a pre-trained checkpoint.
-
-## Results
-
-### Quantitative Results:
-<p align="center"> <img src="./figures/quantitative_results.png" width="100%"> </p>
-
-## Extended link:
-If you want to remove moire patterns in your video, you can try our CVPR 2022 work: [VDMoire](https://github.com/CVMI-Lab/VideoDemoireing)
-![vdmoire](./figures/vdmoire.gif)
-
-## Citation
-Please consider :grimacing: staring this repository and citing the following papers if you feel this repository useful.
-
-```
-@inproceedings{yu2022towards,
-  title={Towards efficient and scale-robust ultra-high-definition image demoir{\'e}ing},
-  author={Yu, Xin and Dai, Peng and Li, Wenbo and Ma, Lan and Shen, Jiajun and Li, Jia and Qi, Xiaojuan},
-  booktitle={European Conference on Computer Vision},
-  pages={646--662},
-  year={2022},
-  organization={Springer}
-}
-
-@inproceedings{dai2022video,
-  title={Video Demoireing with Relation-Based Temporal Consistency},
-  author={Dai, Peng and Yu, Xin and Ma, Lan and Zhang, Baoheng and Li, Jia and Li, Wenbo and Shen, Jiajun and Qi, Xiaojuan},
-  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-  year={2022}
-}
-```
-
-## Contact
-If you have any questions, you can email me (yuxin27g@gmail.com).
-
+The dataset should be placed at '../DB/Enhancement_DB/Adobe5k_480p_train_test/'
 
