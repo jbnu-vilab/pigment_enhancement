@@ -175,7 +175,7 @@ if __name__ == '__main__':
                         help='Support datasets: adobe5k / LOL')
     parser.add_argument('--lr', dest='lr', type=float, default=1e-4, help='Learning rate')
     parser.add_argument('--weight_decay', dest='weight_decay', type=float, default=1e-5, help='Weight decay')
-    parser.add_argument('--batch_size', dest='batch_size', type=int, default=8, help='Batch size')
+    parser.add_argument('--batch_size', dest='batch_size', type=int, default=16, help='Batch size')
     parser.add_argument('--epochs', dest='epochs', type=int, default=400, help='Epochs for training')
     parser.add_argument('--patch_size', dest='patch_size', type=int, default=256, help='Crop size for training & testing image patches')
     parser.add_argument("--test", type=bool, default=False)
@@ -225,7 +225,7 @@ if __name__ == '__main__':
     parser.add_argument("--contrastive", dest='contrastive', type=int, default=0)
 
     parser.add_argument("--glo_mode", dest='glo_mode', type=int, default=0)
-    parser.add_argument("--model", dest='model', type=int, default=0)
+    parser.add_argument("--model", dest='model', type=int, default=24)
     
     parser.add_argument("--feature_num", dest='feature_num', type=int, default=64)
     parser.add_argument("--iter_num", dest='iter_num', type=int, default=2)
@@ -250,11 +250,11 @@ if __name__ == '__main__':
     parser.add_argument("--act_mode", dest='act_mode', type=str, default='sigmoid')
     parser.add_argument("--backbone", dest='backbone', type=str, default='res')
 
-    parser.add_argument("--res_num", dest='res_num', type=int, default=18)
+    parser.add_argument("--res_num", dest='res_num', type=int, default=5)
     parser.add_argument("--lrratio", dest='lrratio', type=int, default=1)
 
     #parser.add_argument("--res_size", dest='res_size', type=int, default=224)
-    parser.add_argument("--res_size", dest='res_size', type=int, default=512)
+    parser.add_argument("--res_size", dest='res_size', type=int, default=256)
     
     parser.add_argument("--local_size", dest='local_size', type=int, default=256)
 
@@ -272,7 +272,7 @@ if __name__ == '__main__':
     parser.add_argument("--mid_conv_mode", dest='mid_conv_mode', type=str, default='conv')
 
     #parser.add_argument("--loader_size", dest='loader_size', type=int, default=448)
-    parser.add_argument("--loader_size", dest='loader_size', type=int, default=512)
+    parser.add_argument("--loader_size", dest='loader_size', type=int, default=256)
 
     parser.add_argument("--softmax", dest='softmax', type=int, default=0)
 
