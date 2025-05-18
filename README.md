@@ -1,6 +1,7 @@
 # Image Enhancement Based on Pigment Representation
 
 **Image Enhancement Based on Pigment Representation**
+
 Se-Ho Lee, Keunsoo Ko, Seung-Wook Kim
 
 ![Example 1](./framework.png)
