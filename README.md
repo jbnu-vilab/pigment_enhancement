@@ -3,8 +3,8 @@
 **Image Enhancement Based on Pigment Representation**
 Se-Ho Lee, Keunsoo Ko, Seung-Wook Kim
 
-![Example 1](./figures/result.png)
-![Gif 1](./figures/1080p.gif)
+(./framework.png)
+
 
 
 ## Introduction
