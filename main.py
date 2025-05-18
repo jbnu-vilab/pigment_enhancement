@@ -8,7 +8,7 @@ from solver import solver_IE
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.multiprocessing as mp
-
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 # os.environ['CUDA_VISIBLE_DEVICES'] = "0,1,2,3"
 
 def init_for_distributed(opts):
