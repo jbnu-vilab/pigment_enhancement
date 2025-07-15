@@ -61,7 +61,11 @@ You can download the pretrained models from the following links:
 
 - **Adobe5K**: [Dropbox](https://...)  
 - **PPR10K**: [Google Drive](https://...)  
-- Checkpoints include `.pth` files
+- Checkpoints include `.pth` files, which should be placed in the following directory:
+
+```
+./model/
+```
 
 ## Train
 To train a model from scratch, simply run:
