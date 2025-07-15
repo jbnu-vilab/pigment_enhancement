@@ -22,6 +22,22 @@ The experiments were conducted using the following software environment:
 
 ## Dataset
 
+The following datasets were used in this project:
+
+- **PPR10K**: [Download Link](https://example.com/ppr10k)
+- **Adobe5K**: [Download Link](https://example.com/adobe5k)
+
+After downloading, please place the datasets in the following directories:
+
+- `PPR10K` dataset should be located at:
+./datasets/ppr10k/
+
+
+- `Adobe5K` dataset should be located at:
+./datasets/adobe5k/
+
+Make sure that the directory structures match the expected format for training and evaluation scripts.
+
 ## Pretrained Models
 
 You can download the pretrained models from the following links:
