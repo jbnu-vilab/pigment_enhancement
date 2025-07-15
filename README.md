@@ -14,10 +14,12 @@ We present a novel and efficient image enhancement method based on pigment repre
 
 The experiments were conducted using the following software environment:
 
-- **PyTorch**: 1.12  
+- **PyTorch**: 1.12
+- **Torchvision**: 0.13.0  
 - **CUDA**: 11.3  
 - **Python**: 3.8
-- 
+- **Operating System**: Ubuntu 20.04 LTS
+
 ## Train
 To train a model from scratch, simply run:
 
