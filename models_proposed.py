@@ -88,7 +88,7 @@ class PigNet(nn.Module):
         param_num2 = (3 * self.feature_num)
 
 
-        self.classifier = resnet18_224(out_dim=param_num1, out_dim2=param_num2, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num, fc_node1=128, fc_node2=128)
+        self.classifier = resnet18_224(out_dim=param_num1, out_dim2=param_num2, out_dim4=param_num4, res_size=config.loader_size, res_num=config.res_num, fc_node1=128, fc_node2=128)
             
 
         self.mid_conv = 2

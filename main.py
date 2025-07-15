@@ -45,7 +45,7 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', dest='weight_decay', type=float, default=1e-5, help='Weight decay')
     parser.add_argument('--batch_size', dest='batch_size', type=int, default=16, help='Batch size')
     parser.add_argument('--epochs', dest='epochs', type=int, default=400, help='Epochs for training')
-    parser.add_argument('--patch_size', dest='patch_size', type=int, default=256, help='Crop size for training & testing image patches')
+
     parser.add_argument("--test", type=bool, default=False)
     parser.add_argument("--use_cuda", type=bool, default=True)
     parser.add_argument("--seed", type=int, default=1)
@@ -62,7 +62,6 @@ if __name__ == '__main__':
     parser.add_argument("--iter_num", dest='iter_num', type=int, default=400)
 
     parser.add_argument("--res_num", dest='res_num', type=int, default=5)
-    parser.add_argument("--res_size", dest='res_size', type=int, default=256)
     parser.add_argument("--loader_size", dest='loader_size', type=int, default=256)
 
 
