@@ -30,6 +30,7 @@ The following datasets were used in this project:
 After downloading, please place the datasets in the following directories:
 
 - `PPR10K` dataset should be located at:
+  
 ../data/train_val_images_tif_360p/
   
 ├── train/
@@ -53,6 +54,7 @@ After downloading, please place the datasets in the following directories:
 └── input/
 
 - `Adobe5K` dataset should be located at:
+  
 ../data/adobe5k/
 
 Make sure that the directory structures match the expected format for training and evaluation scripts.
