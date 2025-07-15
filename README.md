@@ -18,7 +18,7 @@ The experiments were conducted using the following software environment:
 - **Torchvision**: 0.13.0  
 - **CUDA**: 11.3  
 - **Python**: 3.8
-- **Operating System**: Ubuntu 20.04 LTS
+- **OS**: Ubuntu 20.04 LTS
 
 ## Dataset
 
