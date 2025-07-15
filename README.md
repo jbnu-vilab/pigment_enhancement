@@ -20,6 +20,16 @@ The experiments were conducted using the following software environment:
 - **Python**: 3.8
 - **Operating System**: Ubuntu 20.04 LTS
 
+## Dataset
+
+## Pretrained Models
+
+You can download the pretrained models from the following links:
+
+- **Adobe5K**: [Dropbox](https://...)  
+- **PPR10K**: [Google Drive](https://...)  
+- Checkpoints include `.pth` files
+
 ## Train
 To train a model from scratch, simply run:
 
@@ -29,3 +39,6 @@ CUDA_VISIBLE_DEVICES=0 python main.py
 For the Adobe5K dataset, the dataset should be placed at `../DB/Enhancement_DB/Adobe5k_480p_train_test/`
 
 We will update this repository soon to include test scripts, pretrained model weights, and detailed instructions for reproducing the results.
+
+## Test
+
