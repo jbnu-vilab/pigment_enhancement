@@ -80,17 +80,11 @@ class PigNet(nn.Module):
         self.trans_param = 5.0
         self.offset_param = 0.1
 
-        self.leaky_relu = nn.LeakyReLU(0.1)
         param_num1 = (self.control_point_num * self.feature_num)
-
         param_num4 = (3 * self.feature_num)
-
         param_num2 = (3 * self.feature_num)
-
-
         self.classifier = resnet18_224(out_dim=param_num1, out_dim2=param_num2, out_dim4=param_num4, res_size=config.loader_size, res_num=config.res_num, fc_node1=128, fc_node2=128)
             
-
         self.mid_conv = 2
         conv_list = []
         for i in range(0, self.mid_conv):
@@ -99,50 +93,32 @@ class PigNet(nn.Module):
             self.mid_conv_module = nn.Sequential(*conv_list)
 
         self.colorTransform = colorTransform(self.control_point_num, self.offset_param, config)
-
-        bias_flag = False
-        self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0, bias=bias_flag).cuda()
-
-
+        self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0, bias=False).cuda()
         self.sigmoid = nn.Sigmoid()
-        self.tanh = nn.Tanh()
-        self.relu = nn.ReLU()
 
 
     def forward(self, org_img, color_map_control):
         N, C, H, W = org_img.shape
         self.cls_output = self.classifier(org_img)
         
-    
         cur_idx = 3 * self.feature_num
         transform_params = self.cls_output[:,:cur_idx]
-
         transform_params = transform_params.reshape(N * self.feature_num, 3)
-
         transform_params = self.sigmoid(self.trans_param * transform_params)
         epsilon = 1e-10
         t_sum = torch.sum(transform_params, dim=1, keepdim=True)
         transform_params = transform_params / (t_sum + epsilon)
-
-
         transform_params = transform_params.reshape(N * self.feature_num, 3, 1, 1)
 
         org_img = org_img.reshape(1, N * 3, H, W)
-
         img_f = F.conv2d(input=org_img, weight=transform_params, groups=N)
-
         img_f = img_f.reshape(N,self.feature_num,H,W)
 
 
-
         plus_idx = self.control_point_num * self.feature_num
-
         offset_param = self.cls_output[:,cur_idx:cur_idx + plus_idx]
         cur_idx += plus_idx
         img_f_t = self.colorTransform(img_f, offset_param, color_map_control)
-
-
-
 
         if self.mid_conv > 0:
             img_f_t = self.mid_conv_module(img_f_t)
@@ -157,8 +133,6 @@ class PigNet(nn.Module):
 
         return out_img
 
-
-
 class colorTransform(nn.Module):
     def __init__(self, control_point=16, offset_param=0.04, config=0):
         super(colorTransform, self).__init__()
@@ -167,7 +141,6 @@ class colorTransform(nn.Module):
         self.config = config
         self.feature_num = config.feature_num
 
-        
         self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
 
 
@@ -201,8 +174,6 @@ class colorTransform(nn.Module):
 
 
 
-
-
 class resnet18_224(nn.Module):
 
     def __init__(self, out_dim=5, out_dim2=0, out_dim4=0, res_num=18, res_size=224, fc_node1=1024, fc_node2=1024):
@@ -232,16 +203,12 @@ class resnet18_224(nn.Module):
         torch.nn.init.constant_(self.fc[2].weight.data, 0)
         torch.nn.init.constant_(self.fc[2].bias.data, 0)
 
-
-
         if out_dim2 > 0:
             lists = []
             lists += [nn.Linear(512, fc_node2),
                     nn.ReLU(),
                     nn.Linear(fc_node2, out_dim2)]
             self.fc2 = nn.Sequential(*lists)
-
-    
 
         if out_dim4 > 0:
             lists = []
