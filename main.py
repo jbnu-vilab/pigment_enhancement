@@ -51,71 +51,24 @@ if __name__ == '__main__':
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--logs", dest='logs', type=str, default='temp.txt', help='log file')
     parser.add_argument("--resume", dest='resume', type=int, default=0, help='resume') # 1 latest 2 best
-
     parser.add_argument('--warmup_step', dest='warmup_step', type=float, default=1.0, help='warmup step')
     parser.add_argument('--saveimg', dest='saveimg', type=int, default=0, help='image save')
     parser.add_argument("--gpu", dest='gpu', type=str, default='0', help='gpu index')
     parser.add_argument("--test_step", type=int, default=1)
-
-    parser.add_argument("--global", dest='global_m', type=int, default=1)
-
     parser.add_argument("--control_point", dest='control_point', type=int, default=30)
-
-
-    parser.add_argument("--act", dest='act', type=str, default='silu')
-
-    parser.add_argument("--scale", dest='scale', type=int, default=4)
-
-
-    parser.add_argument("--use_param", dest='use_param', type=int, default=1)
     parser.add_argument("--num_workers", dest='num_workers', type=int, default=8)
-    parser.add_argument("--trainable_gamma", dest='trainable_gamma', type=int, default=0)
-    parser.add_argument("--trainable_offset", dest='trainable_offset', type=int, default=1)
-    parser.add_argument("--offset_param", dest='offset_param', type=float, default=0.1)
-    parser.add_argument("--offset_param2", dest='offset_param2', type=float, default=0)
-    parser.add_argument("--gamma_param", dest='gamma_param', type=float, default=0.1)
     parser.add_argument("--lpips", dest='lpips', type=int, default=1)
-
-    parser.add_argument("--seed_opt", dest='seed_opt', type=int, default=0)
-
-
     parser.add_argument("--feature_num", dest='feature_num', type=int, default=64)
-    parser.add_argument("--iter_num", dest='iter_num', type=int, default=2)
-
-    parser.add_argument("--conv_num", dest='conv_num', type=int, default=1)
-    
-    parser.add_argument("--transformer", dest='transformer', type=int, default=1)
-    parser.add_argument("--size", dest='size', type=int, default=448)
-    
-    parser.add_argument("--res_mode", dest='res_mode', type=int, default=0)
-
-    parser.add_argument("--num_weight", dest='num_weight', type=int, default=1)
-
-    parser.add_argument("--backbone", dest='backbone', type=str, default='res')
+    parser.add_argument("--iter_num", dest='iter_num', type=int, default=400)
 
     parser.add_argument("--res_num", dest='res_num', type=int, default=5)
-
     parser.add_argument("--res_size", dest='res_size', type=int, default=256)
-    
-
     parser.add_argument("--loader_size", dest='loader_size', type=int, default=256)
 
 
 
-    parser.add_argument("--upsample_mode", dest='upsample_mode', type=int, default=1)
-
-    parser.add_argument("--trans_param", dest='trans_param', type=float, default=5.0)
-
-    parser.add_argument("--learnable_trans_param", dest='learnable_trans_param', type=int, default=0)
 
 
-    parser.add_argument("--fc_node", dest='fc_node', type=int, default=1024)
-    parser.add_argument("--optimizer_debug", dest='optimizer_debug', type=int, default=0)
-    
-
-    parser.add_argument("--fc_node1", dest='fc_node1', type=int, default=128)
-    parser.add_argument("--fc_node2", dest='fc_node2', type=int, default=128)
-    
     config = parser.parse_args()
 
     main(config)

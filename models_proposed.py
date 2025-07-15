@@ -50,7 +50,7 @@ class TPAMIBackbone(nn.Sequential):
             the subsequent module. Default: False.
     """
 
-    def __init__(self, pretrained=False, input_resolution=256, extra_pooling=True):
+    def __init__(self, input_resolution=256, extra_pooling=True):
         body = [
             BasicBlockT(3, 16, stride=2, norm=True),
             BasicBlockT(16, 32, stride=2, norm=True),
@@ -77,9 +77,8 @@ class PigNet(nn.Module):
         self.control_point_num = config.control_point + 2
         self.feature_num = config.feature_num
         
-        self.conv_num = config.conv_num
-
-        self.trans_param = config.trans_param
+        self.trans_param = 5.0
+        self.offset_param = 0.1
 
         self.leaky_relu = nn.LeakyReLU(0.1)
         param_num1 = (self.control_point_num * self.feature_num)
@@ -89,8 +88,7 @@ class PigNet(nn.Module):
         param_num2 = (3 * self.feature_num)
 
 
-        self.classifier = resnet18_224(out_dim=param_num1, out_dim2=param_num2, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num,
-                                    fc_node=config.fc_node, fc_node1=config.fc_node1, fc_node2=config.fc_node2)
+        self.classifier = resnet18_224(out_dim=param_num1, out_dim2=param_num2, out_dim4=param_num4, res_size=config.res_size, res_num=config.res_num, fc_node1=128, fc_node2=128)
             
 
         self.mid_conv = 2
@@ -100,7 +98,7 @@ class PigNet(nn.Module):
         if self.mid_conv > 0:
             self.mid_conv_module = nn.Sequential(*conv_list)
 
-        self.colorTransform = colorTransform(self.control_point_num, config.offset_param, config)
+        self.colorTransform = colorTransform(self.control_point_num, self.offset_param, config)
 
         bias_flag = False
         self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0, bias=bias_flag).cuda()
@@ -169,18 +167,15 @@ class colorTransform(nn.Module):
         self.config = config
         self.feature_num = config.feature_num
 
-
-        if config.trainable_offset == 1:
-            self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
+        
+        self.offset_param = nn.Parameter(torch.tensor([offset_param], dtype=torch.float32))
 
 
     def forward(self, org_img, params, color_map_control):
         N, C, H, W = org_img.shape
         color_map_control_x = color_map_control.clone()
-        if self.offset_param != -1:
-            params = params.reshape(N, self.feature_num, self.control_point) * self.offset_param
-        else:
-            params = params.reshape(N, self.feature_num, self.control_point)
+
+        params = params.reshape(N, self.feature_num, self.control_point) * self.offset_param
         color_map_control_y = color_map_control_x + params
 
         color_map_control_y = torch.cat((color_map_control_y, color_map_control_y[:, :, self.control_point-1:self.control_point]), dim=2)
@@ -210,7 +205,7 @@ class colorTransform(nn.Module):
 
 class resnet18_224(nn.Module):
 
-    def __init__(self, out_dim=5, out_dim2=0, out_dim4=0, res_num=18, res_size=224, fc_node=1024, fc_node1=1024, fc_node2=1024):
+    def __init__(self, out_dim=5, out_dim2=0, out_dim4=0, res_num=18, res_size=224, fc_node1=1024, fc_node2=1024):
         super(resnet18_224, self).__init__()
 
         self.out_dim2 = out_dim2
@@ -227,10 +222,9 @@ class resnet18_224(nn.Module):
         
 
         net.fc = nn.Identity()
-        # 1
+
         lists = []
         lists += [nn.Linear(512, fc_node1),
-                # nn.BatchNorm2d(1024),
                 nn.ReLU(),
                 nn.Linear(fc_node1, out_dim)]
         self.fc = nn.Sequential(*lists)
@@ -239,17 +233,16 @@ class resnet18_224(nn.Module):
         torch.nn.init.constant_(self.fc[2].bias.data, 0)
 
 
-        # 2
+
         if out_dim2 > 0:
             lists = []
             lists += [nn.Linear(512, fc_node2),
-                    # nn.BatchNorm2d(1024),
                     nn.ReLU(),
                     nn.Linear(fc_node2, out_dim2)]
             self.fc2 = nn.Sequential(*lists)
 
     
-        # 4
+
         if out_dim4 > 0:
             lists = []
             lists += [nn.Linear(512, fc_node2),
