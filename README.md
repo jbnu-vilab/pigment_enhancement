@@ -37,25 +37,25 @@ After downloading, please place the datasets in the following directories:
 
 │ ├── input/
 
-│ ├── input/
+│ ├── target_A/
 
-│ ├── input/
+│ ├── target_B/
 
-│ └── input/
+│ └── target_C/
 
 └── test/
 
-├── input/
+│ ├── input/
 
-├── input/
+│ ├── target_A/
 
-├── input/
+│ ├── target_B/
 
-└── input/
+│ └── target_C/
 
 - `Adobe5K` dataset should be located at:
   
-../data/adobe5k/
+../data/Adobe5k_480p/
 
 Make sure that the directory structures match the expected format for training and evaluation scripts.
 
