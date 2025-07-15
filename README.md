@@ -30,11 +30,20 @@ The following datasets were used in this project:
 After downloading, please place the datasets in the following directories:
 
 - `PPR10K` dataset should be located at:
-./datasets/ppr10k/
-
+../data/train_val_images_tif_360p/
+                             ├── train/
+                                   ├── input/
+                                   ├── input/
+                                   ├── input/
+                                   ├── input/
+                             ├── test/
+                                   ├── input/
+                                   ├── input/
+                                   ├── input/
+                                   ├── input/
 
 - `Adobe5K` dataset should be located at:
-./datasets/adobe5k/
+../data/adobe5k/
 
 Make sure that the directory structures match the expected format for training and evaluation scripts.
 
@@ -52,7 +61,7 @@ To train a model from scratch, simply run:
 ```
 CUDA_VISIBLE_DEVICES=0 python main.py
 ```
-For the Adobe5K dataset, the dataset should be placed at `../DB/Enhancement_DB/Adobe5k_480p_train_test/`
+Please note that the Adobe5K dataset should be placed at `../data/adobe5k/`
 
 We will update this repository soon to include test scripts, pretrained model weights, and detailed instructions for reproducing the results.
 
