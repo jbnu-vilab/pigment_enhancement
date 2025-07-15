@@ -1,19 +1,9 @@
 import os
 import argparse
-import random
-import numpy as np
-import torch
-
 from solver import solver_IE
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
-import torch.multiprocessing as mp
-os.environ['CUDA_VISIBLE_DEVICES'] = "0"
-# os.environ['CUDA_VISIBLE_DEVICES'] = "0,1,2,3"
 
 
 def main(config):
-    #os.environ['CUDA_VISIBLE_DEVICES'] = config.gpu
     folder_path = {
         'adobe5k': '../DB/Enhancement_DB/Adobe5k_480p_train_test/',
         'ppr10ka': '../DB/Enhancement_DB/train_val_images_tif_360p/',
@@ -24,8 +14,6 @@ def main(config):
         os.mkdir('log')
     if os.path.exists('model') == False:
         os.mkdir('model')
-
-    
 
 
     if config.test == False:
@@ -45,8 +33,6 @@ def main(config):
         best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab = solver.test(solver.test_data)
         print("loss: {}, psnr: {}, ssim: {}, lpips: {}, delta_lab: {}".format(best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab))
         config.f.write("loss: {}, psnr: {}, ssim: {}, lpips: {}, delta_lab: {}".format(best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab))
-
-
 
     config.f.close()
 
