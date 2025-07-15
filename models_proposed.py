@@ -83,7 +83,7 @@ class PigNet(nn.Module):
         param_num1 = (self.control_point_num * self.feature_num)
         param_num4 = (3 * self.feature_num)
         param_num2 = (3 * self.feature_num)
-        self.classifier = resnet18_224(out_dim=param_num1, out_dim2=param_num2, out_dim4=param_num4, res_size=config.loader_size, res_num=config.res_num, fc_node1=128, fc_node2=128)
+        self.classifier = resnet18_224(out_dim=param_num1, out_dim2=param_num2, out_dim4=param_num4, res_size=config.loader_size, backbone_type=config.backbone_type, fc_node1=128, fc_node2=128)
             
         self.mid_conv = 2
         conv_list = []
@@ -95,7 +95,6 @@ class PigNet(nn.Module):
         self.colorTransform = colorTransform(self.control_point_num, self.offset_param, config)
         self.conv_out = nn.Conv2d(self.feature_num, 3, kernel_size=1, stride=1, padding=0, bias=False).cuda()
         self.sigmoid = nn.Sigmoid()
-
 
     def forward(self, org_img, color_map_control):
         N, C, H, W = org_img.shape
@@ -176,17 +175,17 @@ class colorTransform(nn.Module):
 
 class resnet18_224(nn.Module):
 
-    def __init__(self, out_dim=5, out_dim2=0, out_dim4=0, res_num=18, res_size=224, fc_node1=1024, fc_node2=1024):
+    def __init__(self, out_dim=5, out_dim2=0, out_dim4=0, backbone_type=18, res_size=224, fc_node1=1024, fc_node2=1024):
         super(resnet18_224, self).__init__()
 
         self.out_dim2 = out_dim2
         self.out_dim4 = out_dim4
         self.fc_num = 2
-        if res_num == 5:
+        if backbone_type == 5:
             net = TPAMIBackbone(input_resolution=res_size)
-        if res_num == 18:
+        if backbone_type == 18:
             net = models.resnet18(pretrained=True)
-        elif res_num == 34:
+        elif backbone_type == 34:
             net = models.resnet34(pretrained=True)
 
         self.upsample = nn.Upsample(size=(res_size, res_size), mode='bilinear')
@@ -213,7 +212,6 @@ class resnet18_224(nn.Module):
         if out_dim4 > 0:
             lists = []
             lists += [nn.Linear(512, fc_node2),
-                    # nn.BatchNorm2d(1024),
                     nn.ReLU(),
                     nn.Linear(fc_node2, out_dim4)]
             self.fc4 = nn.Sequential(*lists)

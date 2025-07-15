@@ -44,7 +44,7 @@ class solver_IE(object):
     """Solver for training and testing"""
     def __init__(self, config, path):
         self.epochs = config.epochs
-        self.log = config.logs
+        self.model_name = config.model_name
         self.dataset = config.dataset
         self.saveimg = config.saveimg
         self.test_step = config.test_step
@@ -72,9 +72,20 @@ class solver_IE(object):
         self.scheduler = WarmupCosineSchedule(self.optimizer, warmup_steps=math.ceil(batch_step_num * config.warmup_step), t_total=batch_step_num * config.epochs, cycles=0.5)
 
         if config.resume == 1: # resume to the latest epoch
-            checkpoint = torch.load('./model/{}_latest.pth'.format(self.log[:-4]))
+            checkpoint = torch.load('./model/{}_latest.pth'.format(self.model_name))
 
-            self.model.load_state_dict(checkpoint["model"], strict=False)
+            from collections import OrderedDict
+            original_state_dict = checkpoint["model"]
+
+            if all(k.startswith("module.") for k in original_state_dict.keys()):
+                new_state_dict = OrderedDict()
+                for k, v in original_state_dict.items():
+                    new_key = k[len("module."):] 
+                    new_state_dict[new_key] = v
+                state_dict = new_state_dict
+            else:
+                state_dict = original_state_dict
+            self.model.load_state_dict(state_dict, strict=False)
 
             opt_state_dict = checkpoint["optimizer"]
             cur_state_dict = self.optimizer.state_dict()
@@ -99,8 +110,22 @@ class solver_IE(object):
                 self.best_delta_lab = 100
             print(self.start_epoch, self.best_psnr, self.best_loss, self.best_lpips)
         elif config.resume == 2: # resume to the best epoch
-            checkpoint = torch.load('./model/{}_best.pth'.format(self.log[:-4]))
-            self.model.load_state_dict(checkpoint["model"], strict=False)
+            checkpoint = torch.load('./model/{}_best.pth'.format(self.model_name))
+            
+
+            from collections import OrderedDict
+            original_state_dict = checkpoint["model"]
+
+            if all(k.startswith("module.") for k in original_state_dict.keys()):
+                new_state_dict = OrderedDict()
+                for k, v in original_state_dict.items():
+                    new_key = k[len("module."):] 
+                    new_state_dict[new_key] = v
+                state_dict = new_state_dict
+            else:
+                state_dict = original_state_dict
+            self.model.load_state_dict(state_dict, strict=False)
+
 
             opt_state_dict = checkpoint["optimizer"]
             cur_state_dict = self.optimizer.state_dict()
@@ -237,14 +262,14 @@ class solver_IE(object):
 
                     if best_psnr == test_psnr:
                         # model save
-                        path = "./model/{}_best.pth".format(self.log[:-4])
+                        path = "./model/{}_best.pth".format(self.model_name)
                         torch.save(save_dict, path)
 
                     print('Best test loss %f, PSNR %f LPIPS %f Delta_LAB %f' % (best_loss, best_psnr, best_lpips, best_delta_lab))
 
                     print('Best test loss2 %f, PSNR %f LPIPS %f Delta_LAB %f' % (best_loss2, best_psnr2, best_lpips2, best_delta_lab2))
 
-                    path = "./model/{}_latest.pth".format(self.log[:-4])
+                    path = "./model/{}_latest.pth".format(self.model_name)
                     torch.save(save_dict, path)
 
 
@@ -264,7 +289,7 @@ class solver_IE(object):
         epoch_delta_lab = 0
         n = 0
         if self.saveimg != 0:
-            img_path = "./model/{}".format(self.log[:-4])
+            img_path = "./model/{}".format(self.model_name)
             if not os.path.exists(img_path):
                 os.makedirs(img_path)
 

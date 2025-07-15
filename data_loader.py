@@ -2,7 +2,6 @@ import torch
 import torchvision
 import folders
 import random
-import torchvision.transforms.functional as F
 from ppr10k import ImageDataset_paper
 
 

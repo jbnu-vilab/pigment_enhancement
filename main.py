@@ -17,24 +17,15 @@ def main(config):
 
 
     if config.test == False:
-
-        config.f = open("log/{}".format(config.logs), 'w')
         print('Training and testing on %s dataset...' % (config.dataset))
-        config.f.write('Training and testing on %s dataset...')
         solver = solver_IE(config, folder_path[config.dataset])
         best_loss, best_psnr, best_lpips = solver.train()
-
-        
     else:
-        config.f = open("log/{}".format(config.logs), 'a')
         print('Training and testing on %s dataset...' % (config.dataset))
-        config.f.write('Training and testing on %s dataset...' % (config.dataset))
         solver = solver_IE(config, folder_path[config.dataset])
         best_loss, best_psnr, best_lpips, best_delta_lab = solver.test(solver.test_data)
         print("loss: {}, psnr: {}, lpips: {}, delta_lab: {}".format(best_loss, best_psnr, best_lpips, best_delta_lab))
-        config.f.write("loss: {}, psnr: {}, lpips: {}, delta_lab: {}".format(best_loss, best_psnr, best_lpips, best_delta_lab))
 
-    config.f.close()
 
 
 if __name__ == '__main__':
@@ -49,8 +40,8 @@ if __name__ == '__main__':
     parser.add_argument("--test", type=bool, default=False)
     parser.add_argument("--use_cuda", type=bool, default=True)
     parser.add_argument("--seed", type=int, default=1)
-    parser.add_argument("--logs", dest='logs', type=str, default='temp.txt', help='log file')
-    parser.add_argument("--resume", dest='resume', type=int, default=0, help='resume') # 1 latest 2 best
+    parser.add_argument("--model_name", dest='model_name', type=str, default='adobe5k_res5', help='model name')
+    parser.add_argument("--resume", dest='resume', type=int, default=0, help='resume') # 1 latest / 2 best
     parser.add_argument('--warmup_step', dest='warmup_step', type=float, default=1.0, help='warmup step')
     parser.add_argument('--saveimg', dest='saveimg', type=int, default=0, help='image save')
     parser.add_argument("--gpu", dest='gpu', type=str, default='0', help='gpu index')
@@ -61,14 +52,13 @@ if __name__ == '__main__':
     parser.add_argument("--feature_num", dest='feature_num', type=int, default=64)
     parser.add_argument("--iter_num", dest='iter_num', type=int, default=400)
 
-    parser.add_argument("--res_num", dest='res_num', type=int, default=5)
+    parser.add_argument("--backbone_type", dest='backbone_type', type=int, default=5)
     parser.add_argument("--loader_size", dest='loader_size', type=int, default=256)
 
 
-
-
-
     config = parser.parse_args()
+    if config.dataset in ["ppr10ka", "ppr10kb", "ppr10kc"]:
+        config.loader_size = 512
 
     main(config)
 
