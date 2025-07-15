@@ -58,7 +58,6 @@ if __name__ == '__main__':
     parser.add_argument("--test_step", type=int, default=1)
 
     parser.add_argument("--global", dest='global_m', type=int, default=1)
-    parser.add_argument("--residual", dest='residual', type=int, default=0)
 
     parser.add_argument("--control_point", dest='control_point', type=int, default=30)
 
@@ -80,17 +79,9 @@ if __name__ == '__main__':
     parser.add_argument("--seed_opt", dest='seed_opt', type=int, default=0)
 
 
-    parser.add_argument("--fix_mode", dest='fix_mode', type=int, default=0)
-
-
-    parser.add_argument("--glo_mode", dest='glo_mode', type=int, default=0)
-    parser.add_argument("--model", dest='model', type=int, default=24)
-    
     parser.add_argument("--feature_num", dest='feature_num', type=int, default=64)
     parser.add_argument("--iter_num", dest='iter_num', type=int, default=2)
-    parser.add_argument("--weight_mode", dest='weight_mode', type=int, default=0)
-    
-    parser.add_argument("--style_loss", dest='style_loss', type=float, default=0)
+
     parser.add_argument("--conv_num", dest='conv_num', type=int, default=1)
     
     parser.add_argument("--transformer", dest='transformer', type=int, default=1)
@@ -98,68 +89,26 @@ if __name__ == '__main__':
     
     parser.add_argument("--res_mode", dest='res_mode', type=int, default=0)
 
-    parser.add_argument("--hyper", dest='hyper', type=int, default=1)
-    parser.add_argument("--conv_mode", dest='conv_mode', type=int, default=1)
-
-    parser.add_argument("--xoffset", dest='xoffset', type=int, default=0)
-
     parser.add_argument("--num_weight", dest='num_weight', type=int, default=1)
 
-    parser.add_argument("--act_mode", dest='act_mode', type=str, default='sigmoid')
     parser.add_argument("--backbone", dest='backbone', type=str, default='res')
 
     parser.add_argument("--res_num", dest='res_num', type=int, default=5)
-    parser.add_argument("--lrratio", dest='lrratio', type=int, default=1)
 
     parser.add_argument("--res_size", dest='res_size', type=int, default=256)
     
-    parser.add_argument("--local_size", dest='local_size', type=int, default=256)
-
-    parser.add_argument("--res_guide", dest='res_guide', type=int, default=0)
-    parser.add_argument("--transform_num", dest='transform_num', type=int, default=1)
-
-    parser.add_argument("--hyper2", dest='hyper2', type=int, default=1)
-    parser.add_argument("--last_hyper", dest='last_hyper', type=int, default=1)
-
-    parser.add_argument("--mid_conv", dest='mid_conv', type=int, default=2)
-    parser.add_argument("--mid_conv_size", dest='mid_conv_size', type=int, default=1)
-
-    parser.add_argument("--hyper_conv", dest='hyper_conv', type=int, default=1)
-
-    parser.add_argument("--mid_conv_mode", dest='mid_conv_mode', type=str, default='conv')
 
     parser.add_argument("--loader_size", dest='loader_size', type=int, default=256)
 
-    parser.add_argument("--softmax", dest='softmax', type=int, default=0)
 
-    parser.add_argument("--local_residual", dest='local_residual', type=int, default=0)
 
-    parser.add_argument("--div", dest='div', type=int, default=1)
-
-    parser.add_argument("--bias", dest='bias', type=int, default=0)
-    parser.add_argument("--pixelwise_multi", dest='pixelwise_multi', type=int, default=0)
-
-    parser.add_argument("--quad", dest='quad', type=int, default=0)
-    parser.add_argument("--fc_num", dest='fc_num', type=int, default=2)
-    
     parser.add_argument("--upsample_mode", dest='upsample_mode', type=int, default=1)
 
-    parser.add_argument("--init_w", dest='init_w', type=int, default=-1)
-    parser.add_argument("--new_res", dest='new_res', type=int, default=1)
     parser.add_argument("--trans_param", dest='trans_param', type=float, default=5.0)
 
     parser.add_argument("--learnable_trans_param", dest='learnable_trans_param', type=int, default=0)
 
-    parser.add_argument("--param1_lr_ratio", dest='param1_lr_ratio', type=float, default=1.0)
-    parser.add_argument("--param2_lr_ratio", dest='param2_lr_ratio', type=float, default=1.0)
-    parser.add_argument("--param1_freeze_epoch", dest='param1_freeze_epoch', type=int, default=0)
-    parser.add_argument("--param2_freeze_epoch", dest='param2_freeze_epoch', type=int, default=0)
-    parser.add_argument("--init_w2", dest='init_w2', type=int, default=2)
-    parser.add_argument("--last_conv_init", dest='last_conv_init', type=int, default=0)
-    parser.add_argument("--last_conv_bias", dest='last_conv_bias', type=int, default=1)
-    parser.add_argument("--init_w_last", dest='init_w_last', type=int, default=1)
 
-    parser.add_argument("--last_relu", dest='last_relu', type=int, default=1)
     parser.add_argument("--fc_node", dest='fc_node', type=int, default=1024)
     parser.add_argument("--optimizer_debug", dest='optimizer_debug', type=int, default=0)
     
@@ -168,7 +117,6 @@ if __name__ == '__main__':
     parser.add_argument("--fc_node2", dest='fc_node2', type=int, default=128)
     
     config = parser.parse_args()
-    config.parallel = 0
 
     main(config)
 

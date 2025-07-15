@@ -25,68 +25,9 @@ class RandomRotate90(object):
         image = torch.rot90(image, deg, [1, 2])
         return image
     
-# 3. normalize * 2 - 1
-class norm2_1(object):
-    def __init__(self, norm):
-        self.norm = norm
-    def __call__(self, sample):
-        image = sample
-        if self.norm == 1:
-            image = 2 * image - 1
-        return image
-
-
-class resize_with_4(object):
-    def __call__(self, sample):
-        image = sample
-        _, h, w = image.shape
-
-        if (h % 4) or (w % 4):
-            nH = (h // 4) * 4
-            nW = (w // 4) * 4
-            image = F.resize(image, (nH, nW))
-        return image
-
-class resize_with_8(object):
-    def __call__(self, sample):
-        image = sample
-        _, h, w = image.shape
-
-        if (h % 8) or (w % 8):
-            nH = (h // 8) * 8
-            nW = (w // 8) * 8
-            image = F.resize(image, (nH, nW))
-        return image
-
-
-class resize_with_16(object):
-    def __call__(self, sample):
-        image = sample
-        _, h, w = image.shape
-
-        if (h % 16) or (w % 16):
-            nH = (h // 16) * 16
-            nW = (w // 16) * 16
-            image = F.resize(image, (nH, nW))
-        return image
 
 
 
-class resize_with_div(object):
-    def __init__(self, div):
-        self.div = div
-    def __call__(self, sample):
-        if self.div == 1:
-            return sample
-        else:
-            image = sample
-            _, h, w = image.shape
-
-            if (h % self.div) or (w % self.div):
-                nH = (h // self.div) * self.div
-                nW = (w // self.div) * self.div
-                image = F.resize(image, (nH, nW))
-            return image
 
 
 
@@ -164,7 +105,6 @@ class DataLoader(object):
 
             else:
                 transforms = torchvision.transforms.Compose([
-                    resize_with_div(config.div),
                     generate_color_map()
                 ])
 
@@ -180,9 +120,9 @@ class DataLoader(object):
             elif dataset == 'ppr10kc':
                 retoucher = 'C'
             if self.istrain == 1:
-                self.data = ImageDataset_paper(root=path, mode="train", use_mask=False, retoucher=retoucher, loader_size=config.loader_size, div=config.div)
+                self.data = ImageDataset_paper(root=path, mode="train", use_mask=False, retoucher=retoucher, loader_size=config.loader_size)
             else:
-                self.data = ImageDataset_paper(root=path, mode="test", use_mask=False, retoucher=retoucher, loader_size=config.loader_size, div=config.div)
+                self.data = ImageDataset_paper(root=path, mode="test", use_mask=False, retoucher=retoucher, loader_size=config.loader_size)
     
         self.num_workers = num_workers
         self.train_sampler = 0

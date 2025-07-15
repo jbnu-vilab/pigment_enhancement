@@ -48,12 +48,7 @@ class solver_IE(object):
         self.dataset = config.dataset
         self.saveimg = config.saveimg
         self.test_step = config.test_step
-        self.model = config.model
         self.iter_num = config.iter_num
-        self.weight_mode = config.weight_mode
-        self.style_loss = config.style_loss
-        self.parallel = config.parallel
-        self.modeln = config.model
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.device = device
@@ -65,7 +60,6 @@ class solver_IE(object):
         self.PSNR = PSNR().cuda(device)
         self.PSNR.training = False
         self.lr = config.lr
-        self.lrratio = config.lrratio
         self.weight_decay = config.weight_decay
 
         train_loader = data_loader.DataLoader(config.dataset, path, config=config, batch_size=config.batch_size, istrain=True, num_workers=config.num_workers)
@@ -81,7 +75,19 @@ class solver_IE(object):
             checkpoint = torch.load('./model/{}_latest.pth'.format(self.log[:-4]))
 
             self.model.load_state_dict(checkpoint["model"], strict=False)
-            self.optimizer.load_state_dict(checkpoint["optimizer"])
+
+            opt_state_dict = checkpoint["optimizer"]
+            cur_state_dict = self.optimizer.state_dict()
+
+            partial_state_dict = {
+                "state": {
+                    k: v for k, v in opt_state_dict["state"].items()
+                    if k in cur_state_dict["state"]
+                },
+                "param_groups": cur_state_dict["param_groups"] 
+            }
+            self.optimizer.load_state_dict(partial_state_dict)
+
             self.start_epoch = checkpoint["epoch"]
             self.best_psnr = checkpoint["best_psnr"]
             self.best_loss = checkpoint["best_loss"]
@@ -95,7 +101,19 @@ class solver_IE(object):
         elif config.resume == 2: # resume to the best epoch
             checkpoint = torch.load('./model/{}_best.pth'.format(self.log[:-4]))
             self.model.load_state_dict(checkpoint["model"], strict=False)
-            self.optimizer.load_state_dict(checkpoint["optimizer"])
+
+            opt_state_dict = checkpoint["optimizer"]
+            cur_state_dict = self.optimizer.state_dict()
+
+            partial_state_dict = {
+                "state": {
+                    k: v for k, v in opt_state_dict["state"].items()
+                    if k in cur_state_dict["state"]
+                },
+                "param_groups": cur_state_dict["param_groups"] 
+            }
+            self.optimizer.load_state_dict(partial_state_dict)
+
             self.start_epoch = checkpoint["epoch"]
             self.best_psnr = checkpoint["best_psnr"]
             self.best_loss = checkpoint["best_loss"]
@@ -119,7 +137,6 @@ class solver_IE(object):
         self.train_data = train_loader.get_data()
         self.test_data = test_loader.get_data()
 
-        self.f = config.f
         self.control_point = config.control_point
 
     def train(self):
@@ -156,12 +173,11 @@ class solver_IE(object):
                 color_position = color_position.cuda(device)
 
                 img = img.cuda(device)
-                index = index.cuda(device)
                 label = label.cuda(device)
                 self.optimizer.zero_grad()
 
 
-                pred = self.model(img, index, color_position)
+                pred = self.model(img, color_position)
                 loss = self.l1_loss(pred, label)
 
                 loss.backward()
@@ -185,8 +201,6 @@ class solver_IE(object):
 
                     if i % 20 == 1:
                         sys.stdout.write('\rEpoch {}: {}/{}, loss: {}'.format(t + 1, i, self.train_data.__len__(), loss))
-                        self.f.write('Epoch {}: {}/{}, loss: {}\n'.format(t + 1, i, self.train_data.__len__(), loss))
-
 
             epoch_loss = epoch_loss / i
             epoch_psnr = epoch_psnr / i
@@ -265,16 +279,13 @@ class solver_IE(object):
                 color_position = torch.tensor(color_position.cuda(device))
                 # Data.
                 img = torch.tensor(img.cuda(device))
-                index = torch.tensor(index.cuda(device))
                 label = torch.tensor(label.cuda(device))
 
                 n = n + 1
                 if n % int(data.__len__() / 10) == 0:
                     sys.stdout.write('\rTest {}/{} '.format(n, data.__len__()))
-                    self.f.write('Test {}/{}\n'.format(n, data.__len__()))
 
-
-                pred = self.model(img, index, color_position)
+                pred = self.model(img, color_position)
                 
                 loss = self.l1_loss(pred, label)
                 epoch_loss = epoch_loss + loss.detach().cpu().numpy()
