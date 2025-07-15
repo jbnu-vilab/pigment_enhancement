@@ -32,25 +32,15 @@ After downloading, please place the datasets in the following directories:
 - `PPR10K` dataset should be located at:
 ```  
 ../data/train_val_images_tif_360p/
-  
 ├── train/
-
 │ ├── input/
-
 │ ├── target_A/
-
 │ ├── target_B/
-
 │ └── target_C/
-
 └── test/
-
 │ ├── input/
-
 │ ├── target_A/
-
 │ ├── target_B/
-
 │ └── target_C/
 ```
 - `Adobe5K` dataset should be located at:
