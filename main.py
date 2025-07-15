@@ -22,7 +22,7 @@ def main(config):
         print('Training and testing on %s dataset...' % (config.dataset))
         config.f.write('Training and testing on %s dataset...')
         solver = solver_IE(config, folder_path[config.dataset])
-        best_loss, best_psnr, best_ssim, best_lpips = solver.train()
+        best_loss, best_psnr, best_lpips = solver.train()
 
         
     else:
@@ -30,9 +30,9 @@ def main(config):
         print('Training and testing on %s dataset...' % (config.dataset))
         config.f.write('Training and testing on %s dataset...' % (config.dataset))
         solver = solver_IE(config, folder_path[config.dataset])
-        best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab = solver.test(solver.test_data)
-        print("loss: {}, psnr: {}, ssim: {}, lpips: {}, delta_lab: {}".format(best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab))
-        config.f.write("loss: {}, psnr: {}, ssim: {}, lpips: {}, delta_lab: {}".format(best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab))
+        best_loss, best_psnr, best_lpips, best_delta_lab = solver.test(solver.test_data)
+        print("loss: {}, psnr: {}, lpips: {}, delta_lab: {}".format(best_loss, best_psnr, best_lpips, best_delta_lab))
+        config.f.write("loss: {}, psnr: {}, lpips: {}, delta_lab: {}".format(best_loss, best_psnr, best_lpips, best_delta_lab))
 
     config.f.close()
 
@@ -49,15 +49,12 @@ if __name__ == '__main__':
     parser.add_argument("--test", type=bool, default=False)
     parser.add_argument("--use_cuda", type=bool, default=True)
     parser.add_argument("--seed", type=int, default=1)
-    parser.add_argument("--scheduler", dest='scheduler', type=str, default='cos_warmup', help='cos_warmup')
     parser.add_argument("--logs", dest='logs', type=str, default='temp.txt', help='log file')
     parser.add_argument("--resume", dest='resume', type=int, default=0, help='resume') # 1 latest 2 best
 
     parser.add_argument('--warmup_step', dest='warmup_step', type=float, default=1.0, help='warmup step')
     parser.add_argument('--saveimg', dest='saveimg', type=int, default=0, help='image save')
     parser.add_argument("--gpu", dest='gpu', type=str, default='0', help='gpu index')
-    parser.add_argument("--loss", dest='loss', type=str, default='l1', help='loss')
-    parser.add_argument("--vgg_loss", dest='vgg_loss', type=int, default=1, help='loss')
     parser.add_argument("--test_step", type=int, default=1)
 
     parser.add_argument("--global", dest='global_m', type=int, default=1)
@@ -65,8 +62,6 @@ if __name__ == '__main__':
 
     parser.add_argument("--control_point", dest='control_point', type=int, default=30)
 
-
-    parser.add_argument("--total_variation", dest='total_variation', type=float, default=0.0)
 
     parser.add_argument("--act", dest='act', type=str, default='silu')
 
@@ -80,7 +75,6 @@ if __name__ == '__main__':
     parser.add_argument("--offset_param", dest='offset_param', type=float, default=0.1)
     parser.add_argument("--offset_param2", dest='offset_param2', type=float, default=0)
     parser.add_argument("--gamma_param", dest='gamma_param', type=float, default=0.1)
-    parser.add_argument("--jitter", type=int, default=0)
     parser.add_argument("--lpips", dest='lpips', type=int, default=1)
 
     parser.add_argument("--seed_opt", dest='seed_opt', type=int, default=0)
@@ -88,16 +82,12 @@ if __name__ == '__main__':
 
     parser.add_argument("--fix_mode", dest='fix_mode', type=int, default=0)
 
-    parser.add_argument("--vgg", dest='vgg', type=float, default=0.1)
-    parser.add_argument("--vgg_mode", dest='vgg_mode', type=int, default=0)
-    parser.add_argument("--contrastive", dest='contrastive', type=int, default=0)
 
     parser.add_argument("--glo_mode", dest='glo_mode', type=int, default=0)
     parser.add_argument("--model", dest='model', type=int, default=24)
     
     parser.add_argument("--feature_num", dest='feature_num', type=int, default=64)
     parser.add_argument("--iter_num", dest='iter_num', type=int, default=2)
-    parser.add_argument("--norm", dest='norm', type=int, default=0)
     parser.add_argument("--weight_mode", dest='weight_mode', type=int, default=0)
     
     parser.add_argument("--style_loss", dest='style_loss', type=float, default=0)
@@ -121,7 +111,6 @@ if __name__ == '__main__':
     parser.add_argument("--res_num", dest='res_num', type=int, default=5)
     parser.add_argument("--lrratio", dest='lrratio', type=int, default=1)
 
-    #parser.add_argument("--res_size", dest='res_size', type=int, default=224)
     parser.add_argument("--res_size", dest='res_size', type=int, default=256)
     
     parser.add_argument("--local_size", dest='local_size', type=int, default=256)
@@ -139,7 +128,6 @@ if __name__ == '__main__':
 
     parser.add_argument("--mid_conv_mode", dest='mid_conv_mode', type=str, default='conv')
 
-    #parser.add_argument("--loader_size", dest='loader_size', type=int, default=448)
     parser.add_argument("--loader_size", dest='loader_size', type=int, default=256)
 
     parser.add_argument("--softmax", dest='softmax', type=int, default=0)
@@ -155,13 +143,7 @@ if __name__ == '__main__':
     parser.add_argument("--fc_num", dest='fc_num', type=int, default=2)
     
     parser.add_argument("--upsample_mode", dest='upsample_mode', type=int, default=1)
-    parser.add_argument("--parallel", dest='parallel', type=int, default=1)
 
-    parser.add_argument("--local-rank", dest='local-rank', type=int, default=0)
-    parser.add_argument("--local_rank", dest='local_rank', type=int, default=0)
-
-    parser.add_argument("--model_loss", dest='model_loss', type=float, default=0)
-    parser.add_argument("--model_loss_type", dest='model_loss_type', type=int, default=1)
     parser.add_argument("--init_w", dest='init_w', type=int, default=-1)
     parser.add_argument("--new_res", dest='new_res', type=int, default=1)
     parser.add_argument("--trans_param", dest='trans_param', type=float, default=5.0)
@@ -176,15 +158,12 @@ if __name__ == '__main__':
     parser.add_argument("--last_conv_init", dest='last_conv_init', type=int, default=0)
     parser.add_argument("--last_conv_bias", dest='last_conv_bias', type=int, default=1)
     parser.add_argument("--init_w_last", dest='init_w_last', type=int, default=1)
-    #parser.add_argument("--dist_url", dest='dist_url', type=str, default="tcp://127.0.0.1:23456")
-    
-    parser.add_argument("--antialias", dest='antialias', type=int, default=0)
+
     parser.add_argument("--last_relu", dest='last_relu', type=int, default=1)
     parser.add_argument("--fc_node", dest='fc_node', type=int, default=1024)
     parser.add_argument("--optimizer_debug", dest='optimizer_debug', type=int, default=0)
     
-    parser.add_argument("--write_text", dest='write_text', type=int, default=0)
-    
+
     parser.add_argument("--fc_node1", dest='fc_node1', type=int, default=128)
     parser.add_argument("--fc_node2", dest='fc_node2', type=int, default=128)
     

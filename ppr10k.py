@@ -29,11 +29,9 @@ class ImageDataset_paper(Dataset):
         print('training with target_' + self.retoucher)
         self.train_input_files = sorted(glob.glob(os.path.join(root, "train/input" + "/*.tif")))
         self.train_target_files = sorted(glob.glob(os.path.join(root, "train/target_" + self.retoucher + "/*.tif")))
-        #self.train_mask_files = sorted(glob.glob(os.path.join(root, "train/masks" + "/*.png")))
 
         self.test_input_files = sorted(glob.glob(os.path.join(root, "test/input" + "/*.tif")))
         self.test_target_files = sorted(glob.glob(os.path.join(root, "test/target_" + self.retoucher + "/*.tif")))
-        #self.test_mask_files = sorted(glob.glob(os.path.join(root, "test/masks" + "/*.png")))
         self.div = div
 
     def __getitem__(self, index):
@@ -106,13 +104,6 @@ class ImageDataset_paper(Dataset):
             img_input = TF_x.to_tensor(img_input)
             img_exptC = TF.to_tensor(img_exptC)
         
-        #if self.mode == "test":
-        #    _, h, w = img_input.shape
-        #    if (h % self.div) or (w % self.div):
-        #        nH = (h // self.div) * self.div
-        #        nW = (w // self.div) * self.div
-        #    img_input = TF.resize(img_input, (nH, nW))
-        #    img_exptC = TF.resize(img_exptC, (nH, nW))
         color_map = torch.zeros(3, 256)
         for i in range(0,256):
             color_map[:,i] = i
@@ -140,11 +131,9 @@ class ImageDataset_paper_aug(Dataset):
         print('training with target_' + self.retoucher)
         self.train_input_files = sorted(glob.glob(os.path.join(root, "train/source_aug_6" + "/*.tif")))
         self.train_target_files = sorted(glob.glob(os.path.join(root, "train/target_" + self.retoucher + "/*.tif")))
-        #self.train_mask_files = sorted(glob.glob(os.path.join(root, "train/masks" + "/*.png")))
 
         self.test_input_files = sorted(glob.glob(os.path.join(root, "test/input" + "/*.tif")))
         self.test_target_files = sorted(glob.glob(os.path.join(root, "test/target_" + self.retoucher + "/*.tif")))
-        #self.test_mask_files = sorted(glob.glob(os.path.join(root, "test/masks" + "/*.png")))
         self.div = div
 
     def __getitem__(self, index):

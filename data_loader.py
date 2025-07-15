@@ -3,37 +3,17 @@ import torchvision
 import folders
 import random
 import torchvision.transforms.functional as F
-from ppr10k import ImageDataset_paper, ImageDataset_paper2, ImageDataset_paper3, ImageDataset_paper_aug
-from torch.utils.data.distributed import DistributedSampler
+from ppr10k import ImageDataset_paper
 
-# 1. random crop with random..size
+
 class RandomCropWithRandomSize(object):
-    def __init__(self, range1, range2):
-        self.range1 = range1
-        self.range2 = range2
-    def __call__(self, sample):
-        image = sample
-        # _, h, w = image.size.shape
-        n_h = random.randint(self.range1, self.range2)
-        n_w = random.randint(self.range1, self.range2)
-        #x = tf.image.random_crop(x, [h, w, 6])
-        transforms = torchvision.transforms.RandomCrop((n_h, n_w))
-        image = transforms(image)
-        return image
-
-class RandomCropWithRandomSize2(object):
-    def __init__(self, range1, range2):
-        self.range1 = range1
-        self.range2 = range2
+    def __init__(self):
+        self.range = 0
     def __call__(self, sample):
         image = sample
         _, h, w = image.shape
-        #n_h = random.randint(h // 2, h)
-        #n_w = random.randint(w // 2, w)
-
         n_h = random.randint(round(0.6*h), h)
         n_w = random.randint(round(0.6*w), w)
-        #x = tf.image.random_crop(x, [h, w, 6])
         transforms = torchvision.transforms.RandomCrop((n_h, n_w))
         image = transforms(image)
         return image
@@ -119,9 +99,7 @@ class generate_index_image(object):
         y = torch.tensor(y)
         x, y = torch.meshgrid(x, y, indexing='xy')
         x = x / ((w - 1) / 31.0)
-        #x = tf.cast(x, 'float32') / (tf.cast(w - 1, 'float32') / 31.0)
         y = y / ((h - 1) / 31.0)
-        #y = tf.cast(y, 'float32') / (tf.cast(h - 1, 'float32') / 31.0)
 
         xl = torch.floor(x)
         xl[xl < 0] = 0
@@ -171,83 +149,28 @@ class DataLoader(object):
         self.batch_size = batch_size
         self.istrain = istrain
         self.config = config
-        if config.antialias == 0:
-            antialias = None
-        elif config.antialias == 1:
-            antialias = True
-        elif config.antialias == 2:
-            antialias = False
-        if (dataset == 'adobe5k' or dataset == 'LOL' or dataset == 'uieb' or dataset == 'hdr' or dataset == 'adobe5k_tone' or dataset == 'adobe5k_4k' or dataset == 'adobe5k_4k2'):
+        if (dataset == 'adobe5k'):
              # Train transforms
             if istrain:
                 transforms = torchvision.transforms.Compose([
-                    RandomCropWithRandomSize2(256, 512), # range [h/2,h] [w/2,w]
-                    #torchvision.transforms.Resize((256, 256)),
-                    torchvision.transforms.Resize((config.loader_size, config.loader_size),antialias=antialias),
-                    torchvision.transforms.RandomHorizontalFlip(),
-                    torchvision.transforms.RandomVerticalFlip(),
-                    RandomRotate90(),
-                    norm2_1(config.norm),
-                    generate_color_map()
-                ])
-
-
-            else:
-                transforms = torchvision.transforms.Compose([
-                    norm2_1(config.norm),
-                    resize_with_div(config.div),
-                    generate_color_map()
-                ])
-        if (dataset == 'euvp'):
-            # Train transforms
-            if istrain:
-                transforms = torchvision.transforms.Compose([
-                    #RandomCropWithRandomSize2(256, 512), # range [h/2,h] [w/2,w]
+                    RandomCropWithRandomSize(), # range [h/2,h] [w/2,w]
                     torchvision.transforms.Resize((config.loader_size, config.loader_size)),
                     torchvision.transforms.RandomHorizontalFlip(),
                     torchvision.transforms.RandomVerticalFlip(),
                     RandomRotate90(),
-                    #norm2_1(),
-                    #generate_index_image(),
                     generate_color_map()
                 ])
 
 
             else:
                 transforms = torchvision.transforms.Compose([
-                    #norm2_1(),
-                    resize_with_4(),
-                    #generate_index_image(),
+                    resize_with_div(config.div),
                     generate_color_map()
                 ])
 
         if dataset == 'adobe5k':
             self.data = folders.Adobe5kFolder(
-                root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter)
-        elif dataset == 'adobe5k_4k':
-            self.data = folders.Adobe5kFolder(
-                root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter)
-        elif dataset == 'adobe5k_4k2':
-            self.data = folders.Adobe5kFolder(
-                root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter)
-        elif dataset == 'adobe5k_tone':
-            self.data = folders.Adobe5kFolder(
-                root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter)
-        elif dataset == 'LOL':
-            self.data = folders.LOLFolder(
-                root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter)
-        elif dataset == 'euvp':
-            self.data = folders.EUVPFolder(
-                root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter)
-        elif dataset == 'uieb':
-            self.data = folders.UIEBFolder(
-                root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter)
-        elif dataset == 'hdr':
-            if self.istrain == 1:
-                self.data = ImageDataset_paper3(root=path, mode="train", use_mask=False, loader_size=config.loader_size, div=config.div)
-            else:
-                self.data = ImageDataset_paper3(root=path, mode="test", use_mask=False, loader_size=config.loader_size, div=config.div)
-            
+                root=path, transform=transforms, istrain=self.istrain)
         
         elif dataset == 'ppr10ka' or dataset == 'ppr10kb' or dataset == 'ppr10kc':
             if dataset == 'ppr10ka':
@@ -260,56 +183,16 @@ class DataLoader(object):
                 self.data = ImageDataset_paper(root=path, mode="train", use_mask=False, retoucher=retoucher, loader_size=config.loader_size, div=config.div)
             else:
                 self.data = ImageDataset_paper(root=path, mode="test", use_mask=False, retoucher=retoucher, loader_size=config.loader_size, div=config.div)
-        
-        elif dataset == 'ppr10ka_aug' or dataset == 'ppr10kb_aug' or dataset == 'ppr10kc_aug':
-            if dataset == 'ppr10ka_aug':
-                retoucher = 'A'
-            elif dataset == 'ppr10kb_aug':
-                retoucher = 'B'
-            elif dataset == 'ppr10kc_aug':
-                retoucher = 'C'
-            if self.istrain == 1:
-                self.data = ImageDataset_paper_aug(root=path, mode="train", use_mask=False, retoucher=retoucher, loader_size=config.loader_size, div=config.div)
-            else:
-                self.data = ImageDataset_paper_aug(root=path, mode="test", use_mask=False, retoucher=retoucher, loader_size=config.loader_size, div=config.div)
-            #self.data = folders.ppr10kFolder(root=path, transform=transforms, istrain=self.istrain, jitter=config.jitter, dataset=dataset)
-        elif dataset == 'adobe5k2':
-            if self.istrain == 1:
-                self.data = ImageDataset_paper2(root=path, mode="train", use_mask=False)
-            else:
-                self.data = ImageDataset_paper2(root=path, mode="test", use_mask=False)
+    
         self.num_workers = num_workers
-        if self.istrain == 1:
-            if self.config.parallel > 0:
-                self.train_sampler = DistributedSampler(dataset=self.data, shuffle=True)
-            else:
-                self.train_sampler = 0
-            
-        else:
-            if self.config.parallel > 0:
-                self.test_sampler = DistributedSampler(dataset=self.data, shuffle=False)
-            else:
-                self.train_sampler = 0
+        self.train_sampler = 0
 
 
 
     def get_data(self):
-        if self.config.parallel == 0:
-            if self.istrain:
-                if self.config.dataset == 'ppr10ka_aug' or self.config.dataset == 'ppr10kb_aug' or self.config.dataset == 'ppr10kc_aug':
-                    dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers, drop_last=True)
-                else:
-                    dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
-            else:
-                dataloader = torch.utils.data.DataLoader(self.data, batch_size=1, shuffle=False)
+        if self.istrain:
+            dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
         else:
-            if self.istrain:
-                if self.config.dataset == 'ppr10ka_aug' or self.config.dataset == 'ppr10kb_aug' or self.config.dataset == 'ppr10kc_aug':
-                    dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size // self.config.world_size, shuffle=False, num_workers= 16 // self.config.world_size, sampler = self.train_sampler, pin_memory=True, drop_last=True)
-                else:
-                    dataloader = torch.utils.data.DataLoader(self.data, batch_size=self.batch_size // self.config.world_size, shuffle=False, num_workers= 16 // self.config.world_size, sampler = self.train_sampler, pin_memory=True)
-            else:
-                #dataloader = torch.utils.data.DataLoader(self.data, batch_size=1, shuffle=False, sampler=self.test_sampler, pin_memory=True)
-                dataloader = torch.utils.data.DataLoader(self.data, batch_size=1, shuffle=False)
-
+            dataloader = torch.utils.data.DataLoader(self.data, batch_size=1, shuffle=False)
+        
         return dataloader
