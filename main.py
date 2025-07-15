@@ -11,105 +11,14 @@ import torch.multiprocessing as mp
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 # os.environ['CUDA_VISIBLE_DEVICES'] = "0,1,2,3"
 
-def init_for_distributed(opts):
-
-    if 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
-        opts.rank = int(os.environ["RANK"])
-        opts.world_size = int(os.environ['WORLD_SIZE'])
-        opts.gpu = int(os.environ['LOCAL_RANK'])
-    elif 'SLURM_PROCID' in os.environ:
-        opts.rank = int(os.environ['SLURM_PROCID'])
-        opts.gpu = opts.rank % torch.cuda.device_count()
-    else:
-        print('Not using distributed mode')
-        opts.distributed = False
-        return
-
-    # 1. setting for distributed training
-    # opts.rank = rank
-    # local_gpu_id = int(opts.gpu_ids[opts.rank])
-    # torch.cuda.set_device(local_gpu_id)
-    # if opts.rank is not None:
-    #     print("Use GPU: {} for training".format(local_gpu_id))
-
-    torch.cuda.set_device(opts.gpu)
-    opts.dist_backend = 'nccl'
-    print('| distributed init (rank {}): {}'.format(
-        opts.rank, 'env://'), flush=True)
-    torch.distributed.init_process_group(backend=opts.dist_backend, init_method=opts.dist_url,
-                                         world_size=opts.world_size, rank=opts.rank)
-
-    torch.distributed.barrier()
-    setup_for_distributed(opts.rank == 0)
-    
-    
-def setup_for_distributed(is_master):
-    """
-    This function disables printing when not in master process
-    """
-    import builtins as __builtin__
-    builtin_print = __builtin__.print
-
-    def print(*args, **kwargs):
-        force = kwargs.pop('force', False)
-        if is_master or force:
-            builtin_print(*args, **kwargs)
-
-    __builtin__.print = print
-
-
-def run_demo(demo_fn, world_size):
-            mp.spawn(demo_fn,
-             args=(world_size,),
-             nprocs=world_size,
-             join=True)
-
-def main_worker(gpu,ngpus_per_node, args):
-    # 내용1 :gpu 설정
-    print(gpu,ngpus_per_node)
-    args.gpu = gpu
-
-    global best_err1, best_err5
-    # 내용1-1: gpu!=0이면 print pass
-    if args.multiprocessing_distributed and args.gpu !=0:
-        def print_pass(*args):
-            pass
-        builtins.print=print_pass
-
-    if args.gpu is not None:
-        print("Use GPU: {} for training".format(args.gpu))
-    
-    if args.distributed:
-        if args.dist_url=='env://' and args.rank==-1:
-            args.rank=int(os.environ["RANK"])
-        if args.multiprocessing_distributed:
-            # gpu = 0,1,2,...,ngpus_per_node-1
-            print("gpu는",gpu)
-            args.rank=args.rank*ngpus_per_node + gpu
-        # 내용1-2: init_process_group 선언
-        torch.distributed.init_process_group(backend=args.dist_backend,init_method=args.dist_url,
-                                            world_size=args.world_size,rank=args.rank)
-
 
 def main(config):
     #os.environ['CUDA_VISIBLE_DEVICES'] = config.gpu
     folder_path = {
         'adobe5k': '../DB/Enhancement_DB/Adobe5k_480p_train_test/',
-        'adobe5k_4k': '../DB/Enhancement_DB/Adobe5k_train_test_4K/',
-        'adobe5k_4k2': '../DB/Enhancement_DB/Adobe5k_train_test_4K_3/',
-        'adobe5k_tone': '../DB/Enhancement_DB/Adobe5k_tonemapping_train_test/',
-        'adobe5k2': '../DB/Enhancement_DB/Adobe5k_480p_train_test/',
-        'LOL': '../DB/Enhancement_DB/LOLdataset/',
-        'uieb': '../DB/Enhancement_DB/UIEB_HU/',
-        'euvp': '../DB/Enhancement_DB/euvp/',
-        'hdr': '../DB/Enhancement_DB/hdrplus/',
         'ppr10ka': '../DB/Enhancement_DB/train_val_images_tif_360p/',
         'ppr10kb': '../DB/Enhancement_DB/train_val_images_tif_360p/',
         'ppr10kc': '../DB/Enhancement_DB/train_val_images_tif_360p/',
-        'ppr10ka_aug': '../DB/Enhancement_DB/train_val_images_tif_360p/',
-        'ppr10kb_aug': '../DB/Enhancement_DB/train_val_images_tif_360p/',
-        'ppr10kc_aug': '../DB/Enhancement_DB/train_val_images_tif_360p/'
-        #'adobe5k': '../DB/Enhancement_DB/Adobe5k_train_test/',
     }
     if os.path.exists('log') == False:
         os.mkdir('log')
@@ -117,23 +26,7 @@ def main(config):
         os.mkdir('model')
 
     
-    if config.seed == 0:
-        pass
-    else:
-        print('we are using the seed = {}'.format(config.seed))
-        torch.manual_seed(config.seed)
-        if config.seed_opt == 0:
-            if config.parallel == 0:
-                torch.cuda.manual_seed(config.seed)
-            else:
-                torch.cuda.manual_seed_all(config.seed)
-        else:
-            torch.cuda.manual_seed(config.seed)
-        np.random.seed(config.seed)
-        random.seed(config.seed)
 
-    #torch.backends.cudnn.enabled = False
-    torch.cuda.set_device(0)
 
     if config.test == False:
 
@@ -145,7 +38,6 @@ def main(config):
 
         
     else:
-        #config.f = open("{}".format(config.log), 'w')
         config.f = open("log/{}".format(config.logs), 'a')
         print('Training and testing on %s dataset...' % (config.dataset))
         config.f.write('Training and testing on %s dataset...' % (config.dataset))
@@ -153,17 +45,7 @@ def main(config):
         best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab = solver.test(solver.test_data)
         print("loss: {}, psnr: {}, ssim: {}, lpips: {}, delta_lab: {}".format(best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab))
         config.f.write("loss: {}, psnr: {}, ssim: {}, lpips: {}, delta_lab: {}".format(best_loss, best_psnr, best_ssim, best_lpips, best_delta_lab))
-        #if config.parallel == 1:
-        #    print("rank: {}\n".format(config.rank))
-        #    if config.rank == 0:
-        #        best_loss, best_psnr, best_ssim, best_lpips = solver.test(solver.test_data)
-        #        print("loss: {}, psnr: {}, ssim: {}, lpips: {}".format(best_loss, best_psnr, best_ssim, best_lpips))
-        #        config.f.write("loss: {}, psnr: {}, ssim: {}, lpips: {}".format(best_loss, best_psnr, best_ssim, best_lpips))
-        #else:
-        #    best_loss, best_psnr, best_ssim, best_lpips = solver.test(solver.test_data)
-        #    print("loss: {}, psnr: {}, ssim: {}, lpips: {}".format(best_loss, best_psnr, best_ssim, best_lpips))
-        #    config.f.write("loss: {}, psnr: {}, ssim: {}, lpips: {}".format(best_loss, best_psnr, best_ssim, best_lpips))
-        
+
 
 
     config.f.close()
@@ -321,15 +203,7 @@ if __name__ == '__main__':
     parser.add_argument("--fc_node2", dest='fc_node2', type=int, default=128)
     
     config = parser.parse_args()
-    num_device = torch.cuda.device_count()
-    if num_device > 1:
-        config.parallel = 1
-    else:
-        config.parallel = 0
-    if config.parallel > 0:
-        config.dist_url = "tcp://127.0.0.1:{}".format(os.environ["MASTER_PORT"])
-        init_for_distributed(config)
-        #local_gpu_id = config.gpu
-        #config.local_gpu_id = local_gpu_id
+    config.parallel = 0
+
     main(config)
 
