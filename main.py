@@ -5,13 +5,11 @@ from solver import solver_IE
 
 def main(config):
     folder_path = {
-        'adobe5k': '../DB/Enhancement_DB/Adobe5k_480p_train_test/',
-        'ppr10ka': '../DB/Enhancement_DB/train_val_images_tif_360p/',
-        'ppr10kb': '../DB/Enhancement_DB/train_val_images_tif_360p/',
-        'ppr10kc': '../DB/Enhancement_DB/train_val_images_tif_360p/',
+        'adobe5k': '../data/Adobe5k_480p/',
+        'ppr10ka': '../data/train_val_images_tif_360p/',
+        'ppr10kb': '../data/train_val_images_tif_360p/',
+        'ppr10kc': '../data/train_val_images_tif_360p/',
     }
-    if os.path.exists('log') == False:
-        os.mkdir('log')
     if os.path.exists('model') == False:
         os.mkdir('model')
 
@@ -44,7 +42,6 @@ if __name__ == '__main__':
     parser.add_argument("--resume", dest='resume', type=int, default=0, help='resume') # 1 latest / 2 best
     parser.add_argument('--warmup_step', dest='warmup_step', type=float, default=1.0, help='warmup step')
     parser.add_argument('--saveimg', dest='saveimg', type=int, default=0, help='image save')
-    parser.add_argument("--gpu", dest='gpu', type=str, default='0', help='gpu index')
     parser.add_argument("--test_step", type=int, default=1)
     parser.add_argument("--control_point", dest='control_point', type=int, default=30)
     parser.add_argument("--num_workers", dest='num_workers', type=int, default=8)
