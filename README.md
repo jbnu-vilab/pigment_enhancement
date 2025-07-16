@@ -86,7 +86,7 @@ You can specify the backbone type using the `--backbone_type` argument:
 - `--backbone_type 18` for ResNet-18  
 - `--backbone_type 34` for ResNet-34  
 
-These are described in detail in the paper.
+These backbone architectures are described in detail in our paper.
 
 
 ## Test
