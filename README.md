@@ -82,11 +82,19 @@ You can specify the backbone type using the `--backbone_type` argument:
 
 These are described in detail in the paper.
 
-To save output images during training or testing, set the following flag:
+
+## Test
+To evaluate a trained model, simply run:
+
+```
+python main.py --dataset adobe5k --model_name adobe5k_res5 --backbone_type 5 --resume 2 --test 1
+```
+
+- `--resume 1` loads the checkpoint from the latest epoch.  
+- `--resume 2` loads the checkpoint with the best PSNR performance.
+
+To save output images during testing, set the following flag:
 
 ```
 --saveimg 1
 ```
-
-## Test
-
