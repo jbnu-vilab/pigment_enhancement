@@ -65,8 +65,8 @@ Make sure that the directory structures match the expected format for training a
 
 You can download the pretrained models from the following links:
 
-- **Adobe5K**: [Google Drive](https://...)  
-- **PPR10K**: [Google Drive](https://...)  
+- **Adobe5K**: [Google Drive](https://drive.google.com/file/d/1DId65SuJPeMt3LctexeOQIJ92U6Dhxtv/view?usp=drive_link)
+- **PPR10K**: [Google Drive](https://drive.google.com/file/d/1-v3nmOUy2t1wzbasyx6zdoDJGKOEc0v1/view?usp=drive_link)  
 - Checkpoints include `.pth` files, which should be placed in the following directory:
 
 ```
