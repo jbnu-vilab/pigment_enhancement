@@ -76,7 +76,7 @@ python main.py --dataset adobe5k --model_name adobe5k_res5 --backbone_type 5
 Please note that the Adobe5K dataset should be placed at `../data/adobe5k/`
 
 You can specify the backbone type using the `--backbone_type` argument:
-- `--backbone_type 5` for a5-layer backbone [25]
+- `--backbone_type 5` for the 5-layer backbone [25]
 - `--backbone_type 18` for ResNet-18  
 - `--backbone_type 34` for ResNet-34  
 
