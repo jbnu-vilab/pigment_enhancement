@@ -33,25 +33,25 @@ After downloading, please place the datasets in the following directories:
 ```  
 ../data/train_val_images_tif_360p/
                               ├── train/
-                              │ ├── input/
-                              │ ├── target_A/
-                              │ ├── target_B/
-                              │ └── target_C/
+                              │     ├── input/
+                              │     ├── target_A/
+                              │     ├── target_B/
+                              │     └── target_C/
                               └── test/
-                              │ ├── input/
-                              │ ├── target_A/
-                              │ ├── target_B/
-                              │ └── target_C/
+                                    ├── input/
+                                    ├── target_A/
+                                    ├── target_B/
+                                    └── target_C/
 ```
 - `Adobe5K` dataset should be located at:
 ```
 ../data/Adobe5k_480p/
                 ├── test/
-                │ ├── input/
-                │ └── user-c/
+                │    ├── input/
+                │    └── user-c/
                 └── train/
-                │ ├── input/
-                └──── user-c/
+                     ├── input/
+                     └──── user-c/
 ```
 We conduct experiments using a **480p downsampled version** of the original 4K Adobe5K images.  
 
