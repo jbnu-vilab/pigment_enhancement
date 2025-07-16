@@ -57,7 +57,7 @@ We conduct experiments using a **480p downsampled version** of the original 4K A
 
 The downsampling is applied to the **short side** of each image to maintain aspect ratio.  
 
-We split the dataset into **training** and **testing** sets manually, as shown in the directory structure above.
+We split the dataset into **train** and **test** sets manually, as shown in the directory structure above.
 
 Make sure that the directory structures match the expected format for training and evaluation scripts.
 
