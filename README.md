@@ -71,11 +71,22 @@ You can download the pretrained models from the following links:
 To train a model from scratch, simply run:
 
 ```
-CUDA_VISIBLE_DEVICES=0 python main.py
+python main.py --dataset adobe5k --model_name adobe5k_res5 --backbone_type 5
 ```
 Please note that the Adobe5K dataset should be placed at `../data/adobe5k/`
 
-We will update this repository soon to include test scripts, pretrained model weights, and detailed instructions for reproducing the results.
+You can specify the backbone type using the `--backbone_type` argument:
+- `--backbone_type 5` for a5-layer backbone [25]
+- `--backbone_type 18` for ResNet-18  
+- `--backbone_type 34` for ResNet-34  
+
+These are described in detail in the paper.
+
+To save output images during training or testing, set the following flag:
+
+```
+--saveimg 1
+```
 
 ## Test
 
