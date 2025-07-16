@@ -24,7 +24,7 @@ The experiments were conducted using the following software environment:
 
 The following datasets were used in this project:
 
-- **PPR10K**: [Download Link](https://example.com/ppr10k)
+- **PPR10K**: [Download Link](https://github.com/csjliang/PPR10K)
 - **Adobe5K**: [Download Link](https://example.com/adobe5k)
 
 After downloading, please place the datasets in the following directories:
