@@ -52,7 +52,7 @@ if __name__ == '__main__':
     parser.add_argument("--backbone_type", dest='backbone_type', type=int, default=5)
     parser.add_argument("--loader_size", dest='loader_size', type=int, default=256)
 
-
+ 
     config = parser.parse_args()
     if config.dataset in ["ppr10ka", "ppr10kb", "ppr10kc"]:
         config.loader_size = 512
