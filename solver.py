@@ -10,7 +10,7 @@ from scheduler import WarmupCosineSchedule
 from torchvision.utils import save_image
 import lpips
 import models_proposed
-
+from vggloss import VGGPerceptualLoss
 class PSNR(nn.Module):
     """Peak Signal to Noise Ratio
     img1 and img2 have range [0, 255]"""
@@ -53,6 +53,7 @@ class solver_IE(object):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.device = device
         self.l1_loss = torch.nn.L1Loss().cuda(device)
+        self.vgg_criterion = VGGPerceptualLoss(self.vgg_mode).to(device)
         self.lpips_fn = lpips.LPIPS().cuda(device)
         
         self.config = config
@@ -203,7 +204,7 @@ class solver_IE(object):
 
 
                 pred = self.model(img, color_position)
-                loss = self.l1_loss(pred, label)
+                loss = self.l1_loss(pred, label) + 0.1 * self.vgg_criterion(pred, label)
 
                 loss.backward()
                 self.optimizer.step()
@@ -312,7 +313,7 @@ class solver_IE(object):
 
                 pred = self.model(img, color_position)
                 
-                loss = self.l1_loss(pred, label)
+                loss = self.l1_loss(pred, label) + 0.1 * self.vgg_criterion(pred, label)
                 epoch_loss = epoch_loss + loss.detach().cpu().numpy()
 
 
