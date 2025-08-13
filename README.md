@@ -18,6 +18,10 @@ The experiments were conducted using the following software environment:
 - **Torchvision**: 0.13.0  
 - **CUDA**: 11.3  
 - **Python**: 3.8
+- **pillow**: 10.0.1 
+- **opencv-python**: 4.11.0.86 
+- **lpips**: 0.1.4  
+- **kornia**: 0.6.8
 - **OS**: Ubuntu 20.04 LTS
 
 ## Dataset
