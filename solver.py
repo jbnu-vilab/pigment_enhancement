@@ -53,7 +53,7 @@ class solver_IE(object):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.device = device
         self.l1_loss = torch.nn.L1Loss().cuda(device)
-        self.vgg_criterion = VGGPerceptualLoss(self.vgg_mode).to(device)
+        self.vgg_criterion = VGGPerceptualLoss().to(device)
         self.lpips_fn = lpips.LPIPS().cuda(device)
         
         self.config = config
