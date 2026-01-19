@@ -127,7 +127,7 @@ If you use this code or the results in your research, please cite the following 
   title     = {Image Enhancement Based on Pigment Representation},
   author    = {Lee, Se-Ho and Ko, Keunsoo and Kim, Seung-Wook},
   booktitle = {IEEE Transactions on Multimedia},
-  year      = {2025}
+  year      = {2026}
 }
 ```
 
